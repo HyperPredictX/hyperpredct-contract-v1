@@ -1,0 +1,75 @@
+version: "3.9"
+
+x-runtime: &runtime
+  working_dir: /app
+  volumes:
+    - .:/app
+  tty: true
+  stdin_open: true
+  command: bash -c "npm install -g npm@latest && npx hardhat run scripts/runRound/index.ts --network hyperevm_testnet"
+
+services:
+  contracts_image:
+    build: .
+    image: hyperpredict/contracts:latest
+    profiles: ["build-only"]
+
+  contract_hype_3min:
+    <<: *runtime
+    image: hyperpredict/contracts:latest
+    env_file: [config/env/hyperEvmTestnet/.env.HYPE-3min]
+
+  contract_hype_15min:
+    <<: *runtime
+    image: hyperpredict/contracts:latest
+    env_file: [config/env/hyperEvmTestnet/.env.HYPE-15min]
+
+  contract_hype_1h:
+    <<: *runtime
+    image: hyperpredict/contracts:latest
+    env_file: [config/env/hyperEvmTestnet/.env.HYPE-1h]
+
+  contract_hype_1d:
+    <<: *runtime
+    image: hyperpredict/contracts:latest
+    env_file: [config/env/hyperEvmTestnet/.env.HYPE-1d]
+
+  contract_btc_3min:
+    <<: *runtime
+    image: hyperpredict/contracts:latest
+    env_file: [config/env/hyperEvmTestnet/.env.BTC-3min]
+
+  contract_btc_15min:
+    <<: *runtime
+    image: hyperpredict/contracts:latest
+    env_file: [config/env/hyperEvmTestnet/.env.BTC-15min]
+
+  contract_btc_1h:
+    <<: *runtime
+    image: hyperpredict/contracts:latest
+    env_file: [config/env/hyperEvmTestnet/.env.BTC-1h]
+
+  contract_btc_1d:
+    <<: *runtime
+    image: hyperpredict/contracts:latest
+    env_file: [config/env/hyperEvmTestnet/.env.BTC-1d]
+
+  contract_eth_3min:
+    <<: *runtime
+    image: hyperpredict/contracts:latest
+    env_file: [config/env/hyperEvmTestnet/.env.ETH-3min]
+
+  contract_eth_15min:
+    <<: *runtime
+    image: hyperpredict/contracts:latest
+    env_file: [config/env/hyperEvmTestnet/.env.ETH-15min]
+
+  contract_eth_1h:
+    <<: *runtime
+    image: hyperpredict/contracts:latest
+    env_file: [config/env/hyperEvmTestnet/.env.ETH-1h]
+
+  contract_eth_1d:
+    <<: *runtime
+    image: hyperpredict/contracts:latest
+    env_file: [config/env/hyperEvmTestnet/.env.ETH-1d]
