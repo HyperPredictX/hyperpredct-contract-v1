@@ -81,8 +81,10 @@ async function runListener() {
     console.log("block:", event.blockNumber);
 
     if (epoch % 8 === 0) {
-      HyperPredictV1PairContract.connect(admin);
-      const treasuryAmount = await claimTreasury(HyperPredictV1PairContract);
+      const treasuryAmount = await claimTreasury(
+        HyperPredictV1PairContract,
+        admin
+      );
       if (!treasuryAmount.eq(0)) {
         const sendAmount = treasuryAmount.div(testerCount);
         for (const tester of testers) {

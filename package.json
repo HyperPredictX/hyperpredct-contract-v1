@@ -9,7 +9,7 @@
     "compile": "npx hardhat compile",
     "deploy:hyperevm_testnet": "npx hardhat run --network hyperevm_testnet scripts/deploy.ts",
     "run-round:hyperevm_testnet": "npx hardhat run --network hyperevm_testnet scripts/runRound/index.ts",
-    "claim-treasury:hyperevm_testnet": "npx hardhat run --network hyperevm_testnet scripts/claim-treasury.ts",
+    "claim-treasury:hyperevm_testnet": "npx hardhat run --network hyperevm_testnet scripts/exec-claim-treasury.ts",
     "read-treasury:hyperevm_testnet": "npx hardhat run --network hyperevm_testnet scripts/read-treasury.ts",
     "test": "npx hardhat test",
     "test:size-contracts": "npx hardhat size-contracts"
