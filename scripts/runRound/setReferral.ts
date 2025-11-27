@@ -14,8 +14,6 @@ async function setReferral() {
 
   let index = 0;
   for (const tester of testers) {
-    if (index >= 10) break;
-
     const referrer = testers[index + 1];
 
     const hasReferrer = await ReferralRegistry.connect(tester).referrerOf(
