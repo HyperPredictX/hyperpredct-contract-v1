@@ -1,8 +1,20 @@
-import { network } from "hardhat";
+import { ethers, network } from "hardhat";
 import { sleep } from "../lib/sleep";
 import { executeRound } from "./executeRound";
 import { fetchHyperPredictV1PairContract } from "./fetchHyperPredictV1PairContract";
 import { updatePriceData } from "./getUpdatePriceData";
+
+const GAS_PRICE = 20_000_000_000n; // 20 gwei
+const GENESIS_START_GAS_LIMIT = 300_000n;
+const GENESIS_LOCK_GAS_LIMIT = 400_000n;
+const GENESIS_START_TX_OVERRIDES = {
+  gasLimit: GENESIS_START_GAS_LIMIT,
+  gasPrice: GAS_PRICE,
+};
+const GENESIS_LOCK_TX_OVERRIDES = {
+  gasLimit: GENESIS_LOCK_GAS_LIMIT,
+  gasPrice: GAS_PRICE,
+};
 
 async function runOneContract(HyperPredictV1PairContract: any) {
   const label = `[${await HyperPredictV1PairContract.address}]`;
@@ -45,7 +57,9 @@ async function runOneContract(HyperPredictV1PairContract: any) {
 
       // 1) startGenesisRound()
       console.log(`${label} Starting genesis round...`);
-      await HyperPredictV1PairContract.genesisStartRound();
+      await HyperPredictV1PairContract.genesisStartRound(
+        GENESIS_START_TX_OVERRIDES
+      );
 
       console.log(
         `${label} ...waiting ${intervalSeconds.toString()}s before lockGenesisRound`
@@ -55,7 +69,9 @@ async function runOneContract(HyperPredictV1PairContract: any) {
       // 2) lockGenesisRound()
       console.log(`${label} Locking genesis round...`);
       await updatePriceData();
-      await HyperPredictV1PairContract.genesisLockRound();
+      await HyperPredictV1PairContract.genesisLockRound(
+        GENESIS_LOCK_TX_OVERRIDES
+      );
 
       // 3) executeRound() in a loop
       while (true) {
