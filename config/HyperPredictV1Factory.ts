@@ -20,11 +20,11 @@ export default {
     hyperevm_testnet: 30,
   },
   Treasury: {
-    hyperevm_mainnet: 0.003 * 10000, // 0.3%
+    hyperevm_mainnet: 0.01 * 10000, // 1%
     hyperevm_testnet: 0.003 * 10000, // 0.3%
   },
   ReferralFee: {
-    hyperevm_mainnet: 0.001 * 10000, // 0.1%
+    hyperevm_mainnet: 0.005 * 10000, // 0.5%
     hyperevm_testnet: 0.001 * 10000, // 0.1%
   },
   BetAmount: {

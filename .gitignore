@@ -35,3 +35,6 @@ config/env/*/.env.*
 .vector/data
 
 logs/*.log
+
+deploy.md
+scripts/bot/testBetAndClaim.ts

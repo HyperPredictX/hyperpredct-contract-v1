@@ -16,31 +16,8 @@ npx @layerzerolabs/hyperliquid-composer set-block --size big --network testnet -
 npx hardhat run --network hyperevm_testnet scripts/deploy-referral-registry.ts
 npx hardhat run --network hyperevm_testnet scripts/deploy-factory.ts
 
-source config/env/hyperEvmTestnet/.env.BTC-1d
-npx hardhat run --network hyperevm_testnet scripts/deploy-pair.ts
-source config/env/hyperEvmTestnet/.env.BTC-1h
-npx hardhat run --network hyperevm_testnet scripts/deploy-pair.ts
-source config/env/hyperEvmTestnet/.env.BTC-3min
-npx hardhat run --network hyperevm_testnet scripts/deploy-pair.ts
-source config/env/hyperEvmTestnet/.env.BTC-15min
-npx hardhat run --network hyperevm_testnet scripts/deploy-pair.ts
-source config/env/hyperEvmTestnet/.env.ETH-1d
-npx hardhat run --network hyperevm_testnet scripts/deploy-pair.ts
-source config/env/hyperEvmTestnet/.env.ETH-1h
-npx hardhat run --network hyperevm_testnet scripts/deploy-pair.ts
-source config/env/hyperEvmTestnet/.env.ETH-3min
-npx hardhat run --network hyperevm_testnet scripts/deploy-pair.ts
-source config/env/hyperEvmTestnet/.env.ETH-15min
-npx hardhat run --network hyperevm_testnet scripts/deploy-pair.ts
-source config/env/hyperEvmTestnet/.env.HYPE-1d
-npx hardhat run --network hyperevm_testnet scripts/deploy-pair.ts
-source config/env/hyperEvmTestnet/.env.HYPE-1h
-npx hardhat run --network hyperevm_testnet scripts/deploy-pair.ts
 source config/env/hyperEvmTestnet/.env.HYPE-3min
 npx hardhat run --network hyperevm_testnet scripts/deploy-pair.ts
-source config/env/hyperEvmTestnet/.env.HYPE-15min
-npx hardhat run --network hyperevm_testnet scripts/deploy-pair.ts
-
 
 # set Small Block Flag on HyperEVM Testnet for admin:
 npx @layerzerolabs/hyperliquid-composer set-block --size small --network testnet --private-key $ADMIN_PRIVATE_KEY
@@ -58,6 +35,8 @@ npx hardhat run scripts/runRound/setReferral.ts --network hyperevm_testnet
 
 # start test bot
 npx hardhat run scripts/bot/testBet.ts --network hyperevm_testnet
+
+npx hardhat run scripts/bot/allClaim.ts --network hyperevm_testnet
 ```
 
 ### Operation
