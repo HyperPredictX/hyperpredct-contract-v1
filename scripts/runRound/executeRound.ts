@@ -1,11 +1,8 @@
 import { updatePriceData } from "./getUpdatePriceData";
-import { ethers } from "hardhat";
 
 const EXECUTE_ROUND_GAS_LIMIT = 600_000n;
-const GAS_PRICE = 20_000_000_000n; // 20 gwei
 const EXECUTE_ROUND_TX_OVERRIDES = {
   gasLimit: EXECUTE_ROUND_GAS_LIMIT,
-  gasPrice: GAS_PRICE,
 };
 
 export async function executeRound(
