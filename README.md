@@ -8,6 +8,45 @@ HyperPredict V1 Contract is a decentralized prediction market protocol built on 
 
 ### Deployment
 
+mainnet deployment script for HyperEVM:
+
+```bash
+source config/env/hyperEvm/.env.HYPE-3min
+
+npx @layerzerolabs/hyperliquid-composer set-block --size big --network mainnet --private-key $ADMIN_PRIVATE_KEY
+
+npx hardhat run --network hyperevm_mainnet scripts/deploy-referral-registry.ts
+npx hardhat run --network hyperevm_mainnet scripts/deploy-factory.ts
+
+source config/env/hyperEvm/.env.HYPE-3min
+npx hardhat run --network hyperevm_mainnet scripts/deploy-pair.ts
+source config/env/hyperEvm/.env.HYPE-15min
+npx hardhat run --network hyperevm_mainnet scripts/deploy-pair.ts
+source config/env/hyperEvm/.env.HYPE-1h
+npx hardhat run --network hyperevm_mainnet scripts/deploy-pair.ts
+source config/env/hyperEvm/.env.HYPE-1d
+npx hardhat run --network hyperevm_mainnet scripts/deploy-pair.ts
+
+# set Small Block Flag on HyperEVM mainnet for admin:
+npx @layerzerolabs/hyperliquid-composer set-block --size small --network mainnet --private-key $ADMIN_PRIVATE_KEY
+
+# set Small Block Flag on HyperEVM mainnet for operator:
+npx @layerzerolabs/hyperliquid-composer set-block --size small --network mainnet --private-key $OPERATOR_PRIVATE_KEY
+
+# genesis round
+npx hardhat run scripts/runRound/index.ts --network hyperevm_mainnet
+
+# set referral testers
+npx hardhat run scripts/runRound/setReferral.ts --network hyperevm_mainnet
+
+# start test bot
+npx hardhat run scripts/bot/testBet.ts --network hyperevm_mainnet
+
+npx hardhat run scripts/bot/allClaim.ts --network hyperevm_mainnet
+```
+
+testnet deployment script for HyperEVM:
+
 ```bash
 source config/env/hyperEvmTestnet/.env.HYPE-3min
 # set Big Block Flag on HyperEVM Testnet:
