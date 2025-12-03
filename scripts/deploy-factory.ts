@@ -53,6 +53,18 @@ const main = async () => {
       throw new Error(`Missing BufferSeconds config for ${networkName}`);
     }
 
+    const treasuryFee = config.Treasury?.[networkName];
+    if (treasuryFee === undefined) {
+      throw new Error(`Missing Treasury config for ${networkName}`);
+    }
+    const treasuryFeeWithReferral =
+      config.TreasuryWithReferral?.[networkName];
+    if (treasuryFeeWithReferral === undefined) {
+      throw new Error(
+        `Missing TreasuryWithReferral config for ${networkName}`
+      );
+    }
+
     const contract = await HyperPredictV1Factory.deploy(
       tokenAddress,
       referralRegistryAddress,
@@ -60,7 +72,8 @@ const main = async () => {
       parseEther(config.BetAmount[networkName].toString()).toString(),
       bufferSeconds,
       config.ReferralFee[networkName],
-      config.Treasury[networkName]
+      treasuryFee,
+      treasuryFeeWithReferral
     );
 
     // Wait for the contract to be deployed before exiting the script.

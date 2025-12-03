@@ -20,6 +20,7 @@ contract HyperPredictV1Factory is Ownable {
   uint256 public minBetAmount;
   uint256 public referralFee;
   uint256 public treasuryFee;
+  uint256 public treasuryFeeWithReferral;
   uint256 public bufferSeconds;
   IHyperPredictV1PairDeployer public pairDeployer;
   uint256 public constant MAX_TREASURY_FEE = 300; // 3%
@@ -43,6 +44,7 @@ contract HyperPredictV1Factory is Ownable {
   event NewAdminAddress(address admin);
   event NewMinBetAmount(uint256 minBetAmount);
   event NewTreasuryFee(uint256 treasuryFee);
+  event NewTreasuryFeeWithReferral(uint256 treasuryFeeWithReferral);
   event NewReferralFee(uint256 referralFee);
   event NewBufferSeconds(uint256 bufferSeconds);
   event NewPairDeployer(address pairDeployer);
@@ -59,16 +61,21 @@ contract HyperPredictV1Factory is Ownable {
     uint256 _minBetAmount,
     uint256 _bufferSeconds,
     uint256 _referralFee,
-    uint256 _treasuryFee
+    uint256 _treasuryFee,
+    uint256 _treasuryFeeWithReferral
   ) {
     require(address(_token) != address(0), "Token zero addr");
     require(_referralRegistryAddress != address(0), "Referral zero addr");
     require(_treasuryFee <= MAX_TREASURY_FEE, "Treasury fee too high");
-    require(_referralFee <= MAX_REFERRAL_FEE, "Referral fee too high");
     require(
-      _treasuryFee >= (_referralFee * 2),
-      "Referral fee higher than treasury"
+      _treasuryFeeWithReferral <= _treasuryFee,
+      "Treasury referral fee too high"
     );
+    require(
+      _treasuryFeeWithReferral <= MAX_TREASURY_FEE,
+      "Treasury fee too high"
+    );
+    require(_referralFee <= MAX_REFERRAL_FEE, "Referral fee too high");
     require(_bufferSeconds > 0, "bufferSeconds must be > 0");
 
     token = _token;
@@ -77,6 +84,7 @@ contract HyperPredictV1Factory is Ownable {
     minBetAmount = _minBetAmount;
     referralFee = _referralFee;
     treasuryFee = _treasuryFee;
+    treasuryFeeWithReferral = _treasuryFeeWithReferral;
     bufferSeconds = _bufferSeconds;
   }
 
@@ -203,9 +211,34 @@ contract HyperPredictV1Factory is Ownable {
    */
   function setTreasuryFee(uint256 _treasuryFee) external onlyAdmin {
     require(_treasuryFee <= MAX_TREASURY_FEE, "Treasury fee too high");
+    require(
+      _treasuryFee >= treasuryFeeWithReferral,
+      "Treasury fee lower than referral"
+    );
     treasuryFee = _treasuryFee;
 
     emit NewTreasuryFee(treasuryFee);
+  }
+
+  /**
+   * @notice Set treasury fee applied when the bettor has a referrer
+   * @dev Callable by admin
+   */
+  function setTreasuryFeeWithReferral(uint256 _treasuryFeeWithReferral)
+    external
+    onlyAdmin
+  {
+    require(
+      _treasuryFeeWithReferral <= MAX_TREASURY_FEE,
+      "Treasury fee too high"
+    );
+    require(
+      treasuryFee >= _treasuryFeeWithReferral,
+      "Treasury fee lower than referral"
+    );
+    treasuryFeeWithReferral = _treasuryFeeWithReferral;
+
+    emit NewTreasuryFeeWithReferral(treasuryFeeWithReferral);
   }
 
   /**
@@ -214,10 +247,6 @@ contract HyperPredictV1Factory is Ownable {
    */
   function setReferralFee(uint256 _referralFee) external onlyAdmin {
     require(_referralFee <= MAX_REFERRAL_FEE, "Referral fee too high");
-    require(
-      treasuryFee >= (_referralFee * 2),
-      "Referral fee higher than treasury"
-    );
     referralFee = _referralFee;
     emit NewReferralFee(referralFee);
   }

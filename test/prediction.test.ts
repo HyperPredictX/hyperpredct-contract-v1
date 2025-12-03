@@ -27,12 +27,13 @@ const BET_TOKEN_DECIMALS = 18;
 const MIN_BET_AMOUNT = ethers.utils.parseEther("1");
 const INITIAL_PLAYER_TOKEN_BALANCE = ethers.utils.parseEther("1000");
 const UPDATE_ALLOWANCE = 30 * BLOCK_COUNT_MULTPLIER; // 30s * multiplier
-const INITIAL_REWARD_RATE = 0.99; // 99%
-const INITIAL_REFERRAL_RATE = 0.0025; // 0.25%
 const INITIAL_TREASURY_RATE = 0.005; // 0.5%
+const INITIAL_TREASURY_RATE_WITH_REFERRAL = 0.0025; // 0.25%
+const INITIAL_REFERRAL_RATE = 0.0025; // 0.25%
+const INITIAL_REWARD_RATE = 1 - INITIAL_TREASURY_RATE; // 99.5%
 
 const INITIAL_REWARD_RATE_WITH_REFERRAL =
-  INITIAL_REWARD_RATE + INITIAL_REFERRAL_RATE;
+  INITIAL_REWARD_RATE + (INITIAL_TREASURY_RATE - INITIAL_TREASURY_RATE_WITH_REFERRAL);
 
 // Enum: 0 = Bull, 1 = Bear
 const Position = {
@@ -126,16 +127,45 @@ contract(
       if (rewardBase.isZero()) return new BN(0);
 
       let payout = betAmountWei.mul(rewardAmount).div(rewardBase);
-      const referralPool = new BN(
-        (await hyperPredictionV1Pair.referralAmountPerRound(epoch)).toString()
+      const referrer = await referralRegistry.referrerOf(user);
+      if (referrer === constants.ZERO_ADDRESS) {
+        return payout;
+      }
+
+      const totalAmount = new BN(round.totalAmount.toString());
+      if (totalAmount.isZero()) {
+        return payout;
+      }
+
+      const basisPoints = new BN("10000");
+      const referralBps = new BN(
+        (await hyperPredictionV1Pair.referralFee()).toString()
       );
-      if (!referralPool.isZero()) {
-        const referrer = await referralRegistry.referrerOf(user);
-        if (referrer !== constants.ZERO_ADDRESS) {
+      if (!referralBps.isZero()) {
+        const referralPool = totalAmount.mul(referralBps).div(basisPoints);
+        if (!referralPool.isZero()) {
           const referralAllocated = referralPool
             .mul(betAmountWei)
             .div(rewardBase);
-          payout = payout.add(referralAllocated.div(new BN(2)));
+          payout = payout.sub(referralAllocated);
+        }
+      }
+
+      const treasuryBps = new BN(
+        (await hyperPredictionV1Pair.treasuryFee()).toString()
+      );
+      const treasuryWithRefBps = new BN(
+        (await hyperPredictionV1Pair.treasuryFeeWithReferral()).toString()
+      );
+      if (treasuryBps.gt(treasuryWithRefBps)) {
+        const refundPool = totalAmount
+          .mul(treasuryBps.sub(treasuryWithRefBps))
+          .div(basisPoints);
+        if (!refundPool.isZero()) {
+          const refundAllocated = refundPool
+            .mul(betAmountWei)
+            .div(rewardBase);
+          payout = payout.add(refundAllocated);
         }
       }
 
@@ -154,13 +184,21 @@ contract(
         return new BN(0);
       }
 
-      const referralPool = new BN(
-        (await hyperPredictionV1Pair.referralAmountPerRound(epoch)).toString()
-      );
-      if (referralPool.isZero()) {
+      const totalAmount = new BN(round.totalAmount.toString());
+      if (totalAmount.isZero()) {
         return new BN(0);
       }
 
+      const referralBps = new BN(
+        (await hyperPredictionV1Pair.referralFee()).toString()
+      );
+      if (referralBps.isZero()) {
+        return new BN(0);
+      }
+
+      const referralPool = totalAmount
+        .mul(referralBps)
+        .div(new BN("10000"));
       const betAmount = new BN(
         (await hyperPredictionV1Pair.ledger(epoch, user)).amount.toString()
       );
@@ -168,7 +206,7 @@ contract(
         return new BN(0);
       }
 
-      return referralPool.mul(betAmount).div(rewardBase).div(new BN(2));
+      return referralPool.mul(betAmount).div(rewardBase);
     }
 
     beforeEach(async () => {
@@ -195,6 +233,7 @@ contract(
         UPDATE_ALLOWANCE, // uint256
         String(INITIAL_REFERRAL_RATE * 10000),
         String(INITIAL_TREASURY_RATE * 10000),
+        String(INITIAL_TREASURY_RATE_WITH_REFERRAL * 10000),
         { from: owner } // deploy tx from
       );
 
@@ -1048,6 +1087,9 @@ contract(
       await hyperPredictionV1Pair.genesisStartRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
+      const epoch1BullUser1Bet = ether("1");
+      const epoch1BullUser2Bet = ether("2");
+      const epoch1BearUser1Bet = ether("4");
       await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 }); // 1 ETH
       await hyperPredictionV1Pair.betBull(currentEpoch, ether("2"), { from: bullUser2 }); // 2 ETH
       await hyperPredictionV1Pair.betBear(currentEpoch, ether("4"), { from: bearUser1 }); // 4 ETH
@@ -1087,9 +1129,18 @@ contract(
       await hyperPredictionV1Pair.genesisLockRound(); // For round 1
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("21"), { from: bullUser1 }); // 21 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("22"), { from: bullUser2 }); // 22 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("24"), { from: bearUser1 }); // 24 ETH
+      const epoch2BullUser1Bet = ether("21");
+      const epoch2BullUser2Bet = ether("22");
+      const epoch2BearUser1Bet = ether("24");
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("3.1").toString(), {
+        from: bullUser1,
+      }); // 3.1 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("3.2").toString(), {
+        from: bullUser2,
+      }); // 3.2 ETH
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("3.4").toString(), {
+        from: bearUser1,
+      }); // 3.4 ETH
 
       assert.equal(await hyperPredictionV1Pair.claimable(1, bullUser1), false);
       assert.equal(await hyperPredictionV1Pair.claimable(1, bullUser2), false);
@@ -1204,16 +1255,24 @@ contract(
       assert.equal(await hyperPredictionV1Pair.claimable(2, bearUser1), true);
 
       // Claim for Round 2: Total rewards = 67, Bull = 43, Bear = 24
+      const bearRound2Bet = new BN(
+        (await hyperPredictionV1Pair.ledger(2, bearUser1)).amount.toString()
+      );
+      const expectedBearClaim = await expectedClaimAmount(
+        2,
+        bearUser1,
+        bearRound2Bet
+      );
       tx = await expectTokenDelta(
         bearUser1,
         () => hyperPredictionV1Pair.claim([2], { from: bearUser1 }),
-        ether("66.33")
+        expectedBearClaim
       ); // Success
       expectEvent(tx, "Claim", {
         sender: bearUser1,
         epoch: new BN("2"),
-        amount: ether("66.33"),
-      }); // 66.33 = 24/24 * (67*0.99)
+        amount: expectedBearClaim,
+      });
 
       await expectRevert(
         hyperPredictionV1Pair.claim([1], { from: bullUser1 }),
@@ -1243,6 +1302,7 @@ contract(
 
     it("Should apply referral bonus with 0.3% treasury and 0.1% referral fee", async () => {
       await factory.setTreasuryFee("30", { from: admin });
+      await factory.setTreasuryFeeWithReferral("10", { from: admin });
       await factory.setReferralFee("10", { from: admin });
 
       const winner = bullUser1;
@@ -1282,22 +1342,26 @@ contract(
       const treasuryBps = new BN(
         (await hyperPredictionV1Pair.treasuryFee()).toString()
       );
+      const treasuryWithReferralBps = new BN(
+        (await hyperPredictionV1Pair.treasuryFeeWithReferral()).toString()
+      );
+      const treasuryDiff = treasuryBps.gt(treasuryWithReferralBps)
+        ? treasuryBps.sub(treasuryWithReferralBps)
+        : new BN("0");
       const referralBps = new BN(
-        (await hyperPredictionV1Pair.totalReferralFee()).toString()
+        (await hyperPredictionV1Pair.referralFee()).toString()
       );
       const totalBet = betAmount.mul(new BN("2"));
       const expectedTreasury = totalBet.mul(treasuryBps).div(basisPoints);
+      const expectedRewardAmount = totalBet.sub(expectedTreasury);
       const expectedReferralPool = totalBet.mul(referralBps).div(basisPoints);
-      const expectedRewardAmount = totalBet
-        .sub(expectedTreasury)
-        .sub(expectedReferralPool);
-      const expectedReferrerBonus = expectedReferralPool.div(new BN("2"));
-      const expectedWinnerReferral = expectedReferralPool.sub(
-        expectedReferrerBonus
-      );
-      const expectedWinnerClaim = expectedRewardAmount.add(
-        expectedWinnerReferral
-      );
+      const expectedTreasuryRefundPool = totalBet
+        .mul(treasuryDiff)
+        .div(basisPoints);
+      const expectedReferrerBonus = expectedReferralPool;
+      const expectedWinnerClaim = expectedRewardAmount
+        .sub(expectedReferrerBonus)
+        .add(expectedTreasuryRefundPool);
 
       // console.log("Expected Winner Claim:", expectedWinnerClaim.toString());
 
@@ -1309,12 +1373,6 @@ contract(
       assert.equal(
         roundInfo.rewardBaseCalAmount.toString(),
         betAmount.toString()
-      );
-      assert.equal(
-        (
-          await hyperPredictionV1Pair.referralAmountPerRound(firstEpoch)
-        ).toString(),
-        expectedReferralPool.toString()
       );
       // console.log(
       //   "ReferralPool:",
@@ -1362,7 +1420,7 @@ contract(
       );
       assert.equal(
         (await hyperPredictionV1Pair.referralAmount()).toString(),
-        expectedReferralPool.toString()
+        expectedReferrerBonus.toString()
       );
       // console.log(
       //   "referralAmount:",
@@ -1510,9 +1568,9 @@ contract(
       await hyperPredictionV1Pair.genesisLockRound(); // For round 1
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("21"), { from: bullUser1 }); // 21 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("22"), { from: bullUser2 }); // 22 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("24"), { from: bearUser1 }); // 24 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2.1"), { from: bullUser1 }); // 2.1 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2.2"), { from: bullUser2 }); // 2.2 ETH
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("2.4"), { from: bearUser1 }); // 2.4 ETH
 
       assert.equal(await hyperPredictionV1Pair.claimable(1, bullUser1), false);
       assert.equal(await hyperPredictionV1Pair.claimable(1, bullUser2), false);
@@ -1559,28 +1617,45 @@ contract(
       assert.equal(await hyperPredictionV1Pair.claimable(2, bearUser1), false);
 
       // Claim for Round 1: Total rewards = 3.7, Bull = 2.3, Bear = 1.4
+      const round1BullUser1Amount = new BN(
+        (await hyperPredictionV1Pair.ledger(1, bullUser1)).amount.toString()
+      );
+      const round1BullUser2Amount = new BN(
+        (await hyperPredictionV1Pair.ledger(1, bullUser2)).amount.toString()
+      );
+      const expectedBullUser1Claim = await expectedClaimAmount(
+        1,
+        bullUser1,
+        round1BullUser1Amount
+      );
+      const expectedBullUser2Claim = await expectedClaimAmount(
+        1,
+        bullUser2,
+        round1BullUser2Amount
+      );
+
       let tx = await expectTokenDelta(
         bullUser1,
         () => hyperPredictionV1Pair.claim([1], { from: bullUser1 }),
-        ether("2.31")
+        expectedBullUser1Claim
       ); // Success
 
       expectEvent(tx, "Claim", {
         sender: bullUser1,
         epoch: new BN("1"),
-        amount: ether("2.31"),
-      }); // 2.1 = 1/3 * (7*0.9)
+        amount: expectedBullUser1Claim,
+      }); // payout should match helper
       tx = await expectTokenDelta(
         bullUser2,
         () => hyperPredictionV1Pair.claim([1], { from: bullUser2 }),
-        ether("4.62")
+        expectedBullUser2Claim
       ); // Success
 
       expectEvent(tx, "Claim", {
         sender: bullUser2,
         epoch: new BN("1"),
-        amount: ether("4.62"),
-      }); // 4.62 = 2/3 * (7*0.99)
+        amount: expectedBullUser2Claim,
+      });
 
       await expectRevert(
         hyperPredictionV1Pair.claim([1], { from: bearUser1 }),
@@ -1613,17 +1688,24 @@ contract(
       assert.equal(await hyperPredictionV1Pair.claimable(2, bearUser1), true);
 
       // Claim for Round 2: Total rewards = 67, Bull = 43, Bear = 24
-
+      const round2BearAmount = new BN(
+        (await hyperPredictionV1Pair.ledger(2, bearUser1)).amount.toString()
+      );
+      const expectedBearUser1Claim = await expectedClaimAmount(
+        2,
+        bearUser1,
+        round2BearAmount
+      );
       tx = await expectTokenDelta(
         bearUser1,
         () => hyperPredictionV1Pair.claim([2], { from: bearUser1 }),
-        ether("66.33")
+        expectedBearUser1Claim
       ); // Success
       expectEvent(tx, "Claim", {
         sender: bearUser1,
         epoch: new BN("2"),
-        amount: ether("66.33"),
-      }); // 66.33 = 24/24 * (67*0.99)
+        amount: expectedBearUser1Claim,
+      });
 
       await expectRevert(
         hyperPredictionV1Pair.claim([1], { from: bullUser1 }),
@@ -1652,15 +1734,27 @@ contract(
     });
 
     it("Should multi claim rewards", async () => {
+      const epoch1BullUser1Bet = ether("1");
+      const epoch1BullUser2Bet = ether("2");
+      const epoch1BearUser1Bet = ether("4");
+      const epoch2BullUser1Bet = ether("21");
+      const epoch2BullUser2Bet = ether("22");
+      const epoch2BearUser1Bet = ether("24");
       // Epoch 1
       const price110 = 11000000000; // $110
       await updateOraclePrice(price110);
       await hyperPredictionV1Pair.genesisStartRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 }); // 1 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2"), { from: bullUser2 }); // 2 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("4"), { from: bearUser1 }); // 4 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, epoch1BullUser1Bet, {
+        from: bullUser1,
+      }); // 1 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, epoch1BullUser2Bet, {
+        from: bullUser2,
+      }); // 2 ETH
+      await hyperPredictionV1Pair.betBear(currentEpoch, epoch1BearUser1Bet, {
+        from: bearUser1,
+      }); // 4 ETH
 
       assert.equal(await hyperPredictionV1Pair.claimable(1, bullUser1), false);
       assert.equal(await hyperPredictionV1Pair.claimable(1, bullUser2), false);
@@ -1673,9 +1767,15 @@ contract(
       await hyperPredictionV1Pair.genesisLockRound(); // For round 1
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("21"), { from: bullUser1 }); // 21 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("22"), { from: bullUser2 }); // 22 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("24"), { from: bearUser1 }); // 24 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, epoch2BullUser1Bet, {
+        from: bullUser1,
+      }); // 21 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, epoch2BullUser2Bet, {
+        from: bullUser2,
+      }); // 22 ETH
+      await hyperPredictionV1Pair.betBear(currentEpoch, epoch2BearUser1Bet, {
+        from: bearUser1,
+      }); // 24 ETH
 
       // Epoch 3, Round 1 is Bull (130 > 120)
       await nextEpoch();
@@ -1712,40 +1812,57 @@ contract(
         "Not eligible for claim"
       );
 
+      const bullUser1Epoch1Claim = await expectedClaimAmount(
+        1,
+        bullUser1,
+        epoch1BullUser1Bet
+      );
+      const bullUser1Epoch2Claim = await expectedClaimAmount(
+        2,
+        bullUser1,
+        epoch2BullUser1Bet
+      );
+      const bullUser2Epoch1Claim = await expectedClaimAmount(
+        1,
+        bullUser2,
+        epoch1BullUser2Bet
+      );
+      const bullUser2Epoch2Claim = await expectedClaimAmount(
+        2,
+        bullUser2,
+        epoch2BullUser2Bet
+      );
+
       let tx = await hyperPredictionV1Pair.claim([1, 2], { from: bullUser1 }); // Success
       let gasUsed = tx.receipt.gasUsed;
 
-      // 2.1 = 1/3 * (7*0.9) + // 29.4488372093 = 21 / 43 * (67 * 0.99) = 29.448837209302325581
       expectEvent(tx, "Claim", {
         sender: bullUser1,
         epoch: new BN("1"),
-        amount: ether("2.31"),
+        amount: bullUser1Epoch1Claim,
       });
 
-      // Manual event handling for second event with same name from the same contract
       assert.equal(tx.logs[1].args.sender, bullUser1);
       assert.equal(tx.logs[1].args.epoch, "2");
       assert.equal(
         tx.logs[1].args.amount.toString(),
-        ether("32.393720930232558139").toString()
+        bullUser1Epoch2Claim.toString()
       );
 
       tx = await hyperPredictionV1Pair.claim([1, 2], { from: bullUser2 }); // Success
       gasUsed = tx.receipt.gasUsed;
 
-      // 4.2 = 2/3 * (7*0.99) + // 30.851162790697674418 = 22 / 43 * (67 * 0.99) = 35.051162790697674418 ETH
       expectEvent(tx, "Claim", {
         sender: bullUser2,
         epoch: new BN("1"),
-        amount: ether("4.62"),
+        amount: bullUser2Epoch1Claim,
       });
 
-      // Manual event handling for second event with same name from the same contract
       assert.equal(tx.logs[1].args.sender, bullUser2);
       assert.equal(tx.logs[1].args.epoch, "2");
       assert.equal(
         tx.logs[1].args.amount.toString(),
-        ether("33.936279069767441860").toString()
+        bullUser2Epoch2Claim.toString()
       );
 
       await expectRevert(
@@ -1855,6 +1972,7 @@ contract(
         UPDATE_ALLOWANCE,
         String(INITIAL_REFERRAL_RATE * 10000),
         String(INITIAL_TREASURY_RATE * 10000),
+        String(INITIAL_TREASURY_RATE_WITH_REFERRAL * 10000),
         { from: owner }
       );
       const foreignPairDeployer = await HyperPredictV1PairDeployer.new(
@@ -2252,11 +2370,6 @@ contract(
       await hyperPredictionV1Pair.executeRound();
 
       assert.equal(await hyperPredictionV1Pair.treasuryAmount(), 0);
-      assert.equal(
-        (await hyperPredictionV1Pair.referralAmountPerRound("1")).toString(),
-        "0"
-      );
-
       const pairBalanceBeforeTreasuryClaim = await betToken.balanceOf(
         hyperPredictionV1Pair.address
       );
@@ -2320,11 +2433,6 @@ contract(
       await hyperPredictionV1Pair.executeRound();
 
       assert.equal(await hyperPredictionV1Pair.treasuryAmount(), 0);
-      assert.equal(
-        (await hyperPredictionV1Pair.referralAmountPerRound("1")).toString(),
-        "0"
-      );
-
       const bearPairBalanceBeforeTreasuryClaim = await betToken.balanceOf(
         hyperPredictionV1Pair.address
       );

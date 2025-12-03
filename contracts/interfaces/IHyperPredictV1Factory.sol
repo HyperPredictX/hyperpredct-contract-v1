@@ -18,6 +18,8 @@ interface IHyperPredictV1Factory {
 
   function treasuryFee() external view returns (uint256);
 
+  function treasuryFeeWithReferral() external view returns (uint256);
+
   function bet(
     address pair,
     bool isBull,

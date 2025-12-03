@@ -42,7 +42,6 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
 
   mapping(uint256 => mapping(address => BetInfo)) public ledger;
   mapping(uint256 => Round) public rounds;
-  mapping(uint256 => uint256) public referralAmountPerRound;
   mapping(address => uint256[]) public userRounds;
 
   enum Position {
@@ -318,7 +317,8 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
               epoch,
               user,
               referralSummary.referrer,
-              baseReward
+              baseReward,
+              round
             );
           addedReward = rewardWithReferral;
 
@@ -453,10 +453,6 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
     emit Unpause(currentEpoch);
   }
 
-  function totalReferralFee() public view returns (uint256) {
-    return referralFee() * 2;
-  }
-
   /**
    * @notice It allows the owner to recover tokens sent to the contract by mistake
    * @param _token: token address
@@ -585,14 +581,13 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
     if (_isSingleSidedRound(round) || (closePrice == lockPrice)) {
       round.rewardBaseCalAmount = 0;
       round.rewardAmount = 0;
-      referralAmountPerRound[epoch] = 0;
       emit RewardsCalculated(epoch, 0, 0, 0, 0);
       return;
     }
 
     uint256 treasuryAmt = (total * treasuryFee()) / 10000;
-    uint256 referralAmt = (total * totalReferralFee()) / 10000;
-    uint256 rewardAmount = total - (treasuryAmt + referralAmt);
+    uint256 rewardAmount = total - treasuryAmt;
+    uint256 referralAllocation = (total * referralFee()) / 10000;
 
     uint256 rewardBaseCalAmount = (closePrice > lockPrice)
       ? round.bullAmount
@@ -600,7 +595,6 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
 
     round.rewardBaseCalAmount = rewardBaseCalAmount;
     round.rewardAmount = rewardAmount;
-    referralAmountPerRound[epoch] = referralAmt;
 
     treasuryAmount += treasuryAmt;
 
@@ -609,7 +603,7 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
       rewardBaseCalAmount,
       rewardAmount,
       treasuryAmt,
-      referralAmt
+      referralAllocation
     );
   }
 
@@ -716,7 +710,8 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
     uint256 epoch,
     address winner,
     address referrer,
-    uint256 baseReward
+    uint256 baseReward,
+    Round memory round
   )
     internal
     returns (
@@ -725,20 +720,52 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
       bool
     )
   {
-    uint256 referralAllocated = (referralAmountPerRound[epoch] *
-      ledger[epoch][winner].amount) / rounds[epoch].rewardBaseCalAmount;
-
-    if (referrer == address(0) || referralAllocated == 0) {
-      treasuryAmount += referralAllocated;
+    if (referrer == address(0) || baseReward == 0) {
       return (baseReward, 0, false);
     }
 
-    uint256 referrerBonus = referralAllocated / 2;
-    uint256 winnerBonus = referralAllocated - referrerBonus;
+    uint256 rewardBase = round.rewardBaseCalAmount;
+    if (rewardBase == 0) {
+      return (baseReward, 0, false);
+    }
 
-    referralAmount += referralAllocated;
+    uint256 userAmount = ledger[epoch][winner].amount;
+    if (userAmount == 0) {
+      return (baseReward, 0, false);
+    }
 
-    return (baseReward + winnerBonus, referrerBonus, true);
+    uint256 referralPool = (round.totalAmount * referralFee()) / 10000;
+    uint256 referrerBonus = (referralPool * userAmount) / rewardBase;
+
+    uint256 winnerBonus = 0;
+    uint256 treasuryFeeValue = treasuryFee();
+    uint256 treasuryFeeWithRefValue = treasuryFeeWithReferral();
+
+    if (treasuryFeeValue > treasuryFeeWithRefValue) {
+      uint256 treasuryRefundPool = (round.totalAmount *
+        (treasuryFeeValue - treasuryFeeWithRefValue)) / 10000;
+      winnerBonus = (treasuryRefundPool * userAmount) / rewardBase;
+      if (winnerBonus > 0) {
+        require(treasuryAmount >= winnerBonus, "Treasury underflow");
+        treasuryAmount -= winnerBonus;
+      }
+    }
+
+    if (referrerBonus == 0 && winnerBonus == 0) {
+      return (baseReward, 0, false);
+    }
+
+    uint256 rewardWithReferral = baseReward + winnerBonus;
+    if (referrerBonus > rewardWithReferral) {
+      referrerBonus = rewardWithReferral;
+    }
+    rewardWithReferral -= referrerBonus;
+
+    if (referrerBonus > 0) {
+      referralAmount += referrerBonus;
+    }
+
+    return (rewardWithReferral, referrerBonus, true);
   }
 
   /**
@@ -820,6 +847,10 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
 
   function treasuryFee() public view returns (uint256) {
     return factory.treasuryFee();
+  }
+
+  function treasuryFeeWithReferral() public view returns (uint256) {
+    return factory.treasuryFeeWithReferral();
   }
 
   function referralRegistry() public view returns (IReferralRegistry) {

@@ -8,6 +8,7 @@ const MIN_BET_AMOUNT = ethers.utils.parseEther("1");
 const UPDATE_ALLOWANCE = 30 * BLOCK_COUNT_MULTPLIER; // 30s * multiplier
 const INITIAL_REFERRAL_RATE = 0; // 0%
 const INITIAL_TREASURY_RATE = 0.01; // 1%
+const INITIAL_TREASURY_WITH_REFERRAL_RATE = 0.01; // 1%
 
 describe("ReferralRegistry", function () {
   let referralRegistry: any;
@@ -39,6 +40,7 @@ describe("ReferralRegistry", function () {
       UPDATE_ALLOWANCE, // uint256
       String(INITIAL_REFERRAL_RATE * 10000),
       String(INITIAL_TREASURY_RATE * 10000),
+      String(INITIAL_TREASURY_WITH_REFERRAL_RATE * 10000),
       { from: owner.address } // deploy tx from
     );
   });
