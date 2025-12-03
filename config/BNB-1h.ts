@@ -5,7 +5,7 @@ export default {
     bsc_mainnet: "0x4D7E825f80bDf85e913E0DD2A2D54927e9dE1594",
     bsc_testnet: "0x5744Cbf430D99456a0A8771208b674F27f8EF0Fb",
   },
-  priceId: "0x4279e31cc369bbcc2faf022b382b080e32a8e689ff20fbc530d2a603eb6cd98b",
+  priceId: "0x2f95862b045670cd22bee3114c39763a4a08beeb663b145d283c31d7d1101c4f",
   Operator: {
     bsc_mainnet: "0x16d1f97b7004390cad342615b9e1f9b326c1ddd5",
     bsc_testnet: "0xd4c1c95e9170ff9a4438e4d356e445382dffb0e3",

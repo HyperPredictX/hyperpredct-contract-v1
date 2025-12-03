@@ -19,6 +19,7 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
 
   IPyth public oracle;
   IHyperPredictV1Factory public factory;
+  IERC20 public immutable betToken;
 
   bool public genesisLockOnce = false;
   bool public genesisStartOnce = false;
@@ -146,6 +147,9 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
   ) {
     require(_factory != address(0), "Factory zero addr");
     factory = IHyperPredictV1Factory(_factory);
+    IERC20 tokenAddress = factory.token();
+    require(address(tokenAddress) != address(0), "Token zero addr");
+    betToken = tokenAddress;
     oracle = IPyth(_oracleAddress);
     operatorAddress = _operatorAddress;
     priceId = _priceId;
@@ -156,16 +160,21 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
    * @notice Bet bear position
    * @param epoch: epoch
    */
-  function betBear(uint256 epoch) external payable whenNotPaused nonReentrant {
+  function betBear(uint256 epoch, uint256 amount)
+    external
+    whenNotPaused
+    nonReentrant
+  {
     require(epoch == currentEpoch, "Bet is too early/late");
     require(_bettable(epoch), "Round not bettable");
     require(
-      msg.value >= minBetAmount(),
+      amount >= minBetAmount(),
       "Bet amount must be greater than minBetAmount"
     );
 
+    betToken.safeTransferFrom(msg.sender, address(this), amount);
+
     // Update round data
-    uint256 amount = msg.value;
     Round storage round = rounds[epoch];
     round.totalAmount = round.totalAmount + amount;
     round.bearAmount = round.bearAmount + amount;
@@ -195,16 +204,21 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
    * @notice Bet bull position
    * @param epoch: epoch
    */
-  function betBull(uint256 epoch) external payable whenNotPaused nonReentrant {
+  function betBull(uint256 epoch, uint256 amount)
+    external
+    whenNotPaused
+    nonReentrant
+  {
     require(epoch == currentEpoch, "Bet is too early/late");
     require(_bettable(epoch), "Round not bettable");
     require(
-      msg.value >= minBetAmount(),
+      amount >= minBetAmount(),
       "Bet amount must be greater than minBetAmount"
     );
 
+    betToken.safeTransferFrom(msg.sender, address(this), amount);
+
     // Update round data
-    uint256 amount = msg.value;
     Round storage round = rounds[epoch];
     round.totalAmount = round.totalAmount + amount;
     round.bullAmount = round.bullAmount + amount;
@@ -314,12 +328,12 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
     }
 
     if (reward > 0) {
-      _safeTransferNativeToken(address(user), reward);
+      betToken.safeTransfer(user, reward);
     }
 
     if (referralSummary.roundCount > 0) {
       if (referralSummary.totalBonus > 0) {
-        _safeTransferNativeToken(
+        betToken.safeTransfer(
           referralSummary.referrer,
           referralSummary.totalBonus
         );
@@ -409,7 +423,7 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
   function claimTreasury() external nonReentrant onlyAdmin {
     uint256 currentTreasuryAmount = treasuryAmount;
     treasuryAmount = 0;
-    _safeTransferNativeToken(adminAddress(), currentTreasuryAmount);
+    betToken.safeTransfer(adminAddress(), currentTreasuryAmount);
 
     emit TreasuryClaim(currentTreasuryAmount);
   }
@@ -437,7 +451,8 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
    * @dev Callable by owner
    */
   function recoverToken(address _token, uint256 _amount) external onlyAdmin {
-    IERC20(_token).safeTransfer(address(msg.sender), _amount);
+    require(_token != address(betToken), "Cannot recover bet token");
+    IERC20(_token).safeTransfer(msg.sender, _amount);
 
     emit TokenRecovery(_token, _amount);
   }
@@ -666,16 +681,6 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
       "Can only start new round after round n-2 closeTimestamp"
     );
     _startRound(epoch);
-  }
-
-  /**
-   * @notice Transfer NativeToken in a safe way
-   * @param to: address to transfer NativeToken to
-   * @param value: NativeToken amount to transfer (in wei)
-   */
-  function _safeTransferNativeToken(address to, uint256 value) internal {
-    (bool success, ) = to.call{ value: value }("");
-    require(success, "TransferHelper: NativeToken_TRANSFER_FAILED");
   }
 
   /**

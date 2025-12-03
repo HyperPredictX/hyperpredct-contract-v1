@@ -4,12 +4,14 @@ pragma solidity ^0.8.19;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { HyperPredictV1Pair } from "./HyperPredictV1Pair.sol";
 import { IHyperPredictV1PairDeployer } from "./interfaces/IHyperPredictV1PairDeployer.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title HyperPredictV1Factory
  * @notice Deploys HyperPredictV1Pair contracts with shared configuration
  */
 contract HyperPredictV1Factory is Ownable {
+  IERC20 public immutable token; // Prediction token
   address public referralRegistryAddress;
   address public adminAddress;
   uint256 public minBetAmount;
@@ -48,6 +50,7 @@ contract HyperPredictV1Factory is Ownable {
   }
 
   constructor(
+    IERC20 _token,
     address _referralRegistryAddress,
     address _adminAddress,
     uint256 _minBetAmount,
@@ -55,6 +58,7 @@ contract HyperPredictV1Factory is Ownable {
     uint256 _referralFee,
     uint256 _treasuryFee
   ) {
+    require(address(_token) != address(0), "Token zero addr");
     require(_referralRegistryAddress != address(0), "Referral zero addr");
     require(_treasuryFee <= MAX_TREASURY_FEE, "Treasury fee too high");
     require(_referralFee <= MAX_REFERRAL_FEE, "Referral fee too high");
@@ -64,6 +68,7 @@ contract HyperPredictV1Factory is Ownable {
     );
     require(_bufferSeconds > 0, "bufferSeconds must be > 0");
 
+    token = _token;
     referralRegistryAddress = _referralRegistryAddress;
     adminAddress = _adminAddress;
     minBetAmount = _minBetAmount;

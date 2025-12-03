@@ -14,6 +14,10 @@ export default {
       bsc_mainnet: "0x22a0c5126414dd422e2476e53ef0738d9cc52ae2",
       bsc_testnet: "0x22a0c5126414dd422e2476e53ef0738d9cc52ae2",
     },
+    ERC20Token: {
+      bsc_mainnet: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", // USDC
+      bsc_testnet: "0x78867bbeef44f2326bf8ddd1941a4439382ef2a7", // BUSD
+    },
   },
   BufferSeconds: {
     bsc_mainnet: 30,
@@ -21,14 +25,14 @@ export default {
   },
   Treasury: {
     bsc_mainnet: 0.01 * 10000, // 1%
-    bsc_testnet: 0.003 * 10000, // 0.3%
+    bsc_testnet: 0.01 * 10000, // 1%
   },
   ReferralFee: {
-    bsc_mainnet: 0.005 * 10000, // 0.5%
-    bsc_testnet: 0.001 * 10000, // 0.1%
+    bsc_mainnet: 0.01 * 10000, // 1%
+    bsc_testnet: 0.01 * 10000, // 1%
   },
   BetAmount: {
-    bsc_mainnet: 0.01,
-    bsc_testnet: 0.01,
+    bsc_mainnet: 1,
+    bsc_testnet: 1,
   },
 };

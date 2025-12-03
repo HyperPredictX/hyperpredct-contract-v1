@@ -39,6 +39,11 @@ const main = async () => {
       );
     }
 
+    const tokenAddress = config.Address?.ERC20Token?.[networkName];
+    if (!tokenAddress || tokenAddress === ethers.constants.AddressZero) {
+      throw new Error(`Missing Token address for ${networkName}`);
+    }
+
     // Deploy contracts.
     const HyperPredictV1Factory = await ethers.getContractFactory(
       "HyperPredictV1Factory"
@@ -49,6 +54,7 @@ const main = async () => {
     }
 
     const contract = await HyperPredictV1Factory.deploy(
+      tokenAddress,
       referralRegistryAddress,
       config.Address.Admin[networkName],
       parseEther(config.BetAmount[networkName].toString()).toString(),

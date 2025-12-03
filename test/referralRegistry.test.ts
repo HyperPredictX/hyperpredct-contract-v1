@@ -2,6 +2,7 @@ import { expect } from "chai";
 import { ethers, artifacts } from "hardhat";
 
 const HyperPredictV1Factory = artifacts.require("HyperPredictV1Factory");
+const MockERC20 = artifacts.require("MockERC20");
 const BLOCK_COUNT_MULTPLIER = 5;
 const MIN_BET_AMOUNT = ethers.utils.parseEther("1");
 const UPDATE_ALLOWANCE = 30 * BLOCK_COUNT_MULTPLIER; // 30s * multiplier
@@ -15,6 +16,7 @@ describe("ReferralRegistry", function () {
   let userA: any;
   let userB: any;
   let userC: any;
+  let betToken: any;
 
   const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
@@ -25,7 +27,12 @@ describe("ReferralRegistry", function () {
     );
     referralRegistry = await ReferralRegistry.deploy();
     await referralRegistry.deployed();
+    betToken = await MockERC20.new("Mock USD Coin", "mUSDC", 18, {
+      from: owner.address,
+    });
+    await betToken.mint(owner.address, ethers.utils.parseEther("1000"));
     factory = await HyperPredictV1Factory.new(
+      betToken.address,
       referralRegistry.address,
       owner.address,
       MIN_BET_AMOUNT.toString(), // uint256
