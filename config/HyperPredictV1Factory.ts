@@ -4,7 +4,7 @@ export default {
   Address: {
     Factory: {
       bsc_mainnet: "0x32e6c523b3fb3700133b9363c7288b8a919628ee",
-      bsc_testnet: "0x0692f3803c76b2680c063fdbd130e91597a91b16",
+      bsc_testnet: "0xe7df5322e0cb96d4a5645d788b7044f71091b13b",
     },
     ReferralRegistry: {
       bsc_mainnet: "0x162e6c250BDdDbff8c35c56274a56E6386b1963B",

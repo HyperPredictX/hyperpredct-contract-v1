@@ -45,11 +45,17 @@ source config/env/bscTestnet/.env.BNB-3min
 npx hardhat run --network bsc_testnet scripts/deploy-referral-registry.ts
 npx hardhat run --network bsc_testnet scripts/deploy-factory.ts
 
-source config/env/bscTestnet/.env.BNB-3min
+npx hardhat run --network bsc_testnet scripts/deploy-pair.ts
+
+
+source config/env/bscTestnet/.env.BNB-1d
+npx hardhat run --network bsc_testnet scripts/deploy-pair.ts
+source config/env/bscTestnet/.env.BNB-1h
+npx hardhat run --network bsc_testnet scripts/deploy-pair.ts
+source config/env/bscTestnet/.env.BNB-15min
 npx hardhat run --network bsc_testnet scripts/deploy-pair.ts
 
 export OPERATOR_PRIVATE_KEY=""
-
 
 # genesis round
 npx hardhat run scripts/runRound/index.ts --network bsc_testnet

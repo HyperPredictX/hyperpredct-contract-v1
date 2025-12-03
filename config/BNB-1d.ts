@@ -12,7 +12,7 @@ export default {
   },
   HyperPredictV1Pair: {
     bsc_mainnet: "0x7082d3b5f441d2011d5577e72fe77d34eec346ec",
-    bsc_testnet: "0xe59268e623bf9f7e076a5219f638b9868f72e81f",
+    bsc_testnet: "0xa39e6d3c64f7ce60a8d7961e98f16bccb7fef153",
   },
   Interval: 86400, // 1 day
 };
