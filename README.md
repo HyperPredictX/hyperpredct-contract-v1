@@ -13,8 +13,6 @@ mainnet deployment script for Binance smart chain:
 ```bash
 source config/env/bsc/.env.BNB-3min
 
-npx @layerzerolabs/hyperliquid-composer set-block --size big --network mainnet --private-key $ADMIN_PRIVATE_KEY
-
 npx hardhat run --network bsc_mainnet scripts/deploy-referral-registry.ts
 npx hardhat run --network bsc_mainnet scripts/deploy-factory.ts
 
@@ -26,12 +24,6 @@ source config/env/bsc/.env.BNB-1h
 npx hardhat run --network bsc_mainnet scripts/deploy-pair.ts
 source config/env/bsc/.env.BNB-1d
 npx hardhat run --network bsc_mainnet scripts/deploy-pair.ts
-
-# set Small Block Flag on Binance smart chain mainnet for admin:
-npx @layerzerolabs/hyperliquid-composer set-block --size small --network mainnet --private-key $ADMIN_PRIVATE_KEY
-
-# set Small Block Flag on Binance smart chain mainnet for operator:
-npx @layerzerolabs/hyperliquid-composer set-block --size small --network mainnet --private-key $OPERATOR_PRIVATE_KEY
 
 # genesis round
 npx hardhat run scripts/runRound/index.ts --network bsc_mainnet
@@ -49,8 +41,6 @@ testnet deployment script for Binance smart chain:
 
 ```bash
 source config/env/bscTestnet/.env.BNB-3min
-# set Big Block Flag on Binance smart chain Testnet:
-npx @layerzerolabs/hyperliquid-composer set-block --size big --network testnet --private-key $ADMIN_PRIVATE_KEY
 
 npx hardhat run --network bsc_testnet scripts/deploy-referral-registry.ts
 npx hardhat run --network bsc_testnet scripts/deploy-factory.ts
@@ -58,13 +48,8 @@ npx hardhat run --network bsc_testnet scripts/deploy-factory.ts
 source config/env/bscTestnet/.env.BNB-3min
 npx hardhat run --network bsc_testnet scripts/deploy-pair.ts
 
-# set Small Block Flag on Binance smart chain Testnet for admin:
-npx @layerzerolabs/hyperliquid-composer set-block --size small --network testnet --private-key $ADMIN_PRIVATE_KEY
-
 export OPERATOR_PRIVATE_KEY=""
 
-# set Small Block Flag on Binance smart chain Testnet for operator:
-npx @layerzerolabs/hyperliquid-composer set-block --size small --network testnet --private-key $OPERATOR_PRIVATE_KEY
 
 # genesis round
 npx hardhat run scripts/runRound/index.ts --network bsc_testnet
@@ -76,6 +61,30 @@ npx hardhat run scripts/runRound/setReferral.ts --network bsc_testnet
 npx hardhat run scripts/bot/testBet.ts --network bsc_testnet
 
 npx hardhat run scripts/bot/allClaim.ts --network bsc_testnet
+```
+
+### Deploying a mock ERC20 token
+
+Use `scripts/deploy-mock-erc20.ts` to deploy the mintable `MockERC20` test token to any Hardhat-supported network.
+
+Optional environment overrides (defaults shown):
+
+- `MOCK_ERC20_NAME` (`"Mock USD Coin"`)
+- `MOCK_ERC20_SYMBOL` (`"mUSDC"`)
+- `MOCK_ERC20_DECIMALS` (`18`)
+- `MOCK_ERC20_INITIAL_MINT` – amount to mint after deployment (e.g. `1000`)
+- `MOCK_ERC20_MINT_TO` – recipient of the initial mint (defaults to deployer)
+
+Example:
+
+```bash
+export MOCK_ERC20_NAME="Mock USD Coin"
+export MOCK_ERC20_SYMBOL="mUSDC"
+export MOCK_ERC20_DECIMALS=18
+export MOCK_ERC20_INITIAL_MINT=1000
+export MOCK_ERC20_MINT_TO="0xYourAddress"
+
+npx hardhat run --network bsc_testnet scripts/deploy-mock-erc20.ts
 ```
 
 ### Operation
