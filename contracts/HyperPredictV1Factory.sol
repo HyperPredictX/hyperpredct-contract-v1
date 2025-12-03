@@ -2,15 +2,18 @@
 pragma solidity ^0.8.19;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { HyperPredictV1Pair } from "./HyperPredictV1Pair.sol";
 import { IHyperPredictV1PairDeployer } from "./interfaces/IHyperPredictV1PairDeployer.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title HyperPredictV1Factory
  * @notice Deploys HyperPredictV1Pair contracts with shared configuration
  */
 contract HyperPredictV1Factory is Ownable {
+  using SafeERC20 for IERC20;
+
   IERC20 public immutable token; // Prediction token
   address public referralRegistryAddress;
   address public adminAddress;
@@ -126,6 +129,43 @@ contract HyperPredictV1Factory is Ownable {
       require(address(pair.factory()) == address(this), "Unknown pair");
 
       pair.claimViaFactory(msg.sender, requests[i].epochs);
+    }
+  }
+
+  /**
+   * @notice Place a bet on a specific pair through the factory
+   * @param pairAddress pair contract to interact with
+   * @param isBull true for bull position, false for bear
+   * @param epoch target epoch
+   * @param amount bet amount
+   */
+  function bet(
+    address pairAddress,
+    bool isBull,
+    uint256 epoch,
+    uint256 amount
+  ) external {
+    require(pairAddress != address(0), "pair zero addr");
+    require(
+      amount >= minBetAmount,
+      "Bet amount must be greater than minBetAmount"
+    );
+
+    HyperPredictV1Pair pair = HyperPredictV1Pair(pairAddress);
+    require(address(pair.factory()) == address(this), "Unknown pair");
+
+    token.safeTransferFrom(msg.sender, address(this), amount);
+    token.safeIncreaseAllowance(pairAddress, amount);
+
+    if (isBull) {
+      pair.betBullViaFactory(msg.sender, epoch, amount);
+    } else {
+      pair.betBearViaFactory(msg.sender, epoch, amount);
+    }
+
+    uint256 remainingAllowance = token.allowance(address(this), pairAddress);
+    if (remainingAllowance > 0) {
+      token.safeApprove(pairAddress, 0);
     }
   }
 

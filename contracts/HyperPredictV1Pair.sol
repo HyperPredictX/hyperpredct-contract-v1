@@ -165,39 +165,21 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
     whenNotPaused
     nonReentrant
   {
-    require(epoch == currentEpoch, "Bet is too early/late");
-    require(_bettable(epoch), "Round not bettable");
-    require(
-      amount >= minBetAmount(),
-      "Bet amount must be greater than minBetAmount"
-    );
+    _bet(Position.Bear, msg.sender, epoch, amount, false);
+  }
 
-    betToken.safeTransferFrom(msg.sender, address(this), amount);
-
-    // Update round data
-    Round storage round = rounds[epoch];
-    round.totalAmount = round.totalAmount + amount;
-    round.bearAmount = round.bearAmount + amount;
-
-    // Update user data
-    BetInfo storage betInfo = ledger[epoch][msg.sender];
-    bool isFirstBet = betInfo.amount == 0;
-
-    if (isFirstBet) {
-      betInfo.position = Position.Bear;
-    } else {
-      require(
-        betInfo.position == Position.Bear,
-        "Can only add to existing position"
-      );
-    }
-
-    betInfo.amount = betInfo.amount + amount;
-    if (isFirstBet) {
-      userRounds[msg.sender].push(epoch);
-    }
-
-    emit BetBear(msg.sender, epoch, amount);
+  /**
+   * @notice Bet bear position via factory
+   * @param user the bettor address
+   * @param epoch prediction epoch
+   */
+  function betBearViaFactory(
+    address user,
+    uint256 epoch,
+    uint256 amount
+  ) external whenNotPaused nonReentrant onlyFactory {
+    require(user == tx.origin, "Proxy contract not allowed");
+    _bet(Position.Bear, user, epoch, amount, true);
   }
 
   /**
@@ -209,6 +191,30 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
     whenNotPaused
     nonReentrant
   {
+    _bet(Position.Bull, msg.sender, epoch, amount, false);
+  }
+
+  /**
+   * @notice Bet bull position via factory
+   * @param user the bettor address
+   * @param epoch prediction epoch
+   */
+  function betBullViaFactory(
+    address user,
+    uint256 epoch,
+    uint256 amount
+  ) external whenNotPaused nonReentrant onlyFactory {
+    require(user == tx.origin, "Proxy contract not allowed");
+    _bet(Position.Bull, user, epoch, amount, true);
+  }
+
+  function _bet(
+    Position position,
+    address bettor,
+    uint256 epoch,
+    uint256 amount,
+    bool fromFactory
+  ) internal {
     require(epoch == currentEpoch, "Bet is too early/late");
     require(_bettable(epoch), "Round not bettable");
     require(
@@ -216,32 +222,39 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
       "Bet amount must be greater than minBetAmount"
     );
 
-    betToken.safeTransferFrom(msg.sender, address(this), amount);
+    address payer = fromFactory ? msg.sender : bettor;
+    betToken.safeTransferFrom(payer, address(this), amount);
 
-    // Update round data
     Round storage round = rounds[epoch];
     round.totalAmount = round.totalAmount + amount;
-    round.bullAmount = round.bullAmount + amount;
+    if (position == Position.Bull) {
+      round.bullAmount = round.bullAmount + amount;
+    } else {
+      round.bearAmount = round.bearAmount + amount;
+    }
 
-    // Update user data
-    BetInfo storage betInfo = ledger[epoch][msg.sender];
+    BetInfo storage betInfo = ledger[epoch][bettor];
     bool isFirstBet = betInfo.amount == 0;
 
     if (isFirstBet) {
-      betInfo.position = Position.Bull;
+      betInfo.position = position;
     } else {
       require(
-        betInfo.position == Position.Bull,
+        betInfo.position == position,
         "Can only add to existing position"
       );
     }
 
     betInfo.amount = betInfo.amount + amount;
     if (isFirstBet) {
-      userRounds[msg.sender].push(epoch);
+      userRounds[bettor].push(epoch);
     }
 
-    emit BetBull(msg.sender, epoch, amount);
+    if (position == Position.Bull) {
+      emit BetBull(bettor, epoch, amount);
+    } else {
+      emit BetBear(bettor, epoch, amount);
+    }
   }
 
   /**

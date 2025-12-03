@@ -85,12 +85,12 @@ contract(
       bearUser3,
     ];
 
-    const approvePairSpending = async (pairAddress: string) => {
+    const approveSpending = async (spender: string) => {
       for (const addr of getPlayerAccounts()) {
         const signer = await ethers.getSigner(addr);
         await betToken
           .connect(signer)
-          .approve(pairAddress, ethers.constants.MaxUint256);
+          .approve(spender, ethers.constants.MaxUint256);
       }
     };
 
@@ -224,7 +224,8 @@ contract(
       for (const addr of getPlayerAccounts()) {
         await betToken.mint(addr, INITIAL_PLAYER_TOKEN_BALANCE);
       }
-      await approvePairSpending(hyperPredictionV1Pair.address);
+      await approveSpending(hyperPredictionV1Pair.address);
+      await approveSpending(factory.address);
       await updateOraclePrice(INITIAL_PRICE);
     });
 
@@ -733,6 +734,67 @@ contract(
         await hyperPredictionV1Pair.getUserRoundsLength(bullUser1),
         4
       );
+    });
+
+    it("Should route bets through the factory", async () => {
+      await hyperPredictionV1Pair.genesisStartRound();
+      currentEpoch = await hyperPredictionV1Pair.currentEpoch();
+
+      const bullBet = ether("2");
+      const bearBet = ether("3");
+      const totalBet = bullBet.add(bearBet);
+
+      await factory.bet(
+        hyperPredictionV1Pair.address,
+        true,
+        currentEpoch,
+        bullBet,
+        { from: bullUser1 }
+      );
+      await factory.bet(
+        hyperPredictionV1Pair.address,
+        false,
+        currentEpoch,
+        bearBet,
+        { from: bearUser1 }
+      );
+
+      assert.equal(
+        (await betToken.balanceOf(hyperPredictionV1Pair.address)).toString(),
+        totalBet.toString()
+      );
+      assert.equal(
+        (await betToken.balanceOf(factory.address)).toString(),
+        "0"
+      );
+      assert.equal(
+        (
+          await betToken.allowance(
+            factory.address,
+            hyperPredictionV1Pair.address
+          )
+        ).toString(),
+        "0"
+      );
+
+      const round = await hyperPredictionV1Pair.rounds(currentEpoch);
+      assert.equal(round.totalAmount.toString(), totalBet.toString());
+      assert.equal(round.bullAmount.toString(), bullBet.toString());
+      assert.equal(round.bearAmount.toString(), bearBet.toString());
+
+      const bullLedger = await hyperPredictionV1Pair.ledger(
+        currentEpoch,
+        bullUser1
+      );
+      assert.equal(bullLedger.position, Position.Bull);
+      assert.equal(bullLedger.amount.toString(), bullBet.toString());
+
+      const bearLedger = await hyperPredictionV1Pair.ledger(
+        currentEpoch,
+        bearUser1
+      );
+      assert.equal(bearLedger.position, Position.Bear);
+      assert.equal(bearLedger.amount.toString(), bearBet.toString());
     });
 
     it("Should only allow adding bets to the same position", async () => {
@@ -1722,7 +1784,7 @@ contract(
       );
       const secondPairAddress = await factory.allPairs(1);
       const secondPair = await HyperPredictV1Pair.at(secondPairAddress);
-      await approvePairSpending(secondPairAddress);
+      await approveSpending(secondPairAddress);
 
       // Setup round for first pair
       const firstStart = 15000000000; // $150
