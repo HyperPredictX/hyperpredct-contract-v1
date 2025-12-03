@@ -2,80 +2,80 @@
 
 ## Description
 
-HyperPredict V1 Contract is a decentralized prediction market protocol built on HyperEVM. It allows users to bet on the price movement of HYPE/USD within specified time intervals (rounds). Each round consists of three phases: betting, locking, and execution. This contract was forked from PancakeSwap Prediction V1 Contract.
+HyperPredict V1 Contract is a decentralized prediction market protocol built on Binance smart chain. It allows users to bet on the price movement of BNB/USD within specified time intervals (rounds). Each round consists of three phases: betting, locking, and execution. This contract was forked from PancakeSwap Prediction V1 Contract.
 
 ## Features
 
 ### Deployment
 
-mainnet deployment script for HyperEVM:
+mainnet deployment script for Binance smart chain:
 
 ```bash
-source config/env/hyperEvm/.env.HYPE-3min
+source config/env/bsc/.env.BNB-3min
 
 npx @layerzerolabs/hyperliquid-composer set-block --size big --network mainnet --private-key $ADMIN_PRIVATE_KEY
 
-npx hardhat run --network hyperevm_mainnet scripts/deploy-referral-registry.ts
-npx hardhat run --network hyperevm_mainnet scripts/deploy-factory.ts
+npx hardhat run --network bsc_mainnet scripts/deploy-referral-registry.ts
+npx hardhat run --network bsc_mainnet scripts/deploy-factory.ts
 
-source config/env/hyperEvm/.env.HYPE-3min
-npx hardhat run --network hyperevm_mainnet scripts/deploy-pair.ts
-source config/env/hyperEvm/.env.HYPE-15min
-npx hardhat run --network hyperevm_mainnet scripts/deploy-pair.ts
-source config/env/hyperEvm/.env.HYPE-1h
-npx hardhat run --network hyperevm_mainnet scripts/deploy-pair.ts
-source config/env/hyperEvm/.env.HYPE-1d
-npx hardhat run --network hyperevm_mainnet scripts/deploy-pair.ts
+source config/env/bsc/.env.BNB-3min
+npx hardhat run --network bsc_mainnet scripts/deploy-pair.ts
+source config/env/bsc/.env.BNB-15min
+npx hardhat run --network bsc_mainnet scripts/deploy-pair.ts
+source config/env/bsc/.env.BNB-1h
+npx hardhat run --network bsc_mainnet scripts/deploy-pair.ts
+source config/env/bsc/.env.BNB-1d
+npx hardhat run --network bsc_mainnet scripts/deploy-pair.ts
 
-# set Small Block Flag on HyperEVM mainnet for admin:
+# set Small Block Flag on Binance smart chain mainnet for admin:
 npx @layerzerolabs/hyperliquid-composer set-block --size small --network mainnet --private-key $ADMIN_PRIVATE_KEY
 
-# set Small Block Flag on HyperEVM mainnet for operator:
+# set Small Block Flag on Binance smart chain mainnet for operator:
 npx @layerzerolabs/hyperliquid-composer set-block --size small --network mainnet --private-key $OPERATOR_PRIVATE_KEY
 
 # genesis round
-npx hardhat run scripts/runRound/index.ts --network hyperevm_mainnet
+npx hardhat run scripts/runRound/index.ts --network bsc_mainnet
 
 # set referral testers
-npx hardhat run scripts/runRound/setReferral.ts --network hyperevm_mainnet
+npx hardhat run scripts/runRound/setReferral.ts --network bsc_mainnet
 
 # start test bot
-npx hardhat run scripts/bot/testBet.ts --network hyperevm_mainnet
+npx hardhat run scripts/bot/testBet.ts --network bsc_mainnet
 
-npx hardhat run scripts/bot/allClaim.ts --network hyperevm_mainnet
+npx hardhat run scripts/bot/allClaim.ts --network bsc_mainnet
 ```
 
-testnet deployment script for HyperEVM:
+testnet deployment script for Binance smart chain:
 
 ```bash
-source config/env/hyperEvmTestnet/.env.HYPE-3min
-# set Big Block Flag on HyperEVM Testnet:
+source config/env/bscTestnet/.env.BNB-3min
+# set Big Block Flag on Binance smart chain Testnet:
 npx @layerzerolabs/hyperliquid-composer set-block --size big --network testnet --private-key $ADMIN_PRIVATE_KEY
 
-npx hardhat run --network hyperevm_testnet scripts/deploy-referral-registry.ts
-npx hardhat run --network hyperevm_testnet scripts/deploy-factory.ts
+npx hardhat run --network bsc_testnet scripts/deploy-referral-registry.ts
+npx hardhat run --network bsc_testnet scripts/deploy-factory.ts
 
-source config/env/hyperEvmTestnet/.env.HYPE-3min
-npx hardhat run --network hyperevm_testnet scripts/deploy-pair.ts
+source config/env/bscTestnet/.env.BNB-3min
+npx hardhat run --network bsc_testnet scripts/deploy-pair.ts
 
-# set Small Block Flag on HyperEVM Testnet for admin:
+# set Small Block Flag on Binance smart chain Testnet for admin:
 npx @layerzerolabs/hyperliquid-composer set-block --size small --network testnet --private-key $ADMIN_PRIVATE_KEY
 
 export OPERATOR_PRIVATE_KEY=""
 
-# set Small Block Flag on HyperEVM Testnet for operator:
+# set Small Block Flag on Binance smart chain Testnet for operator:
 npx @layerzerolabs/hyperliquid-composer set-block --size small --network testnet --private-key $OPERATOR_PRIVATE_KEY
 
 # genesis round
-npx hardhat run scripts/runRound/index.ts --network hyperevm_testnet
+npx hardhat run scripts/runRound/index.ts --network bsc_testnet
 
 # set referral testers
-npx hardhat run scripts/runRound/setReferral.ts --network hyperevm_testnet
+npx hardhat run scripts/runRound/setReferral.ts --network bsc_testnet
 
 # start test bot
-npx hardhat run scripts/bot/testBet.ts --network hyperevm_testnet
+npx hardhat run scripts/bot/testBet.ts --network bsc_testnet
 
-npx hardhat run scripts/bot/allClaim.ts --network hyperevm_testnet
+npx hardhat run scripts/bot/allClaim.ts --network bsc_testnet
 ```
 
 ### Operation

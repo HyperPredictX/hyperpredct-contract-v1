@@ -129,12 +129,6 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
     _;
   }
 
-  modifier notContract() {
-    require(!_isContract(msg.sender), "Contract not allowed");
-    require(msg.sender == tx.origin, "Proxy contract not allowed");
-    _;
-  }
-
   /**
    * @notice Constructor
    * @param _factory: factory contract address
@@ -162,13 +156,7 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
    * @notice Bet bear position
    * @param epoch: epoch
    */
-  function betBear(uint256 epoch)
-    external
-    payable
-    whenNotPaused
-    nonReentrant
-    notContract
-  {
+  function betBear(uint256 epoch) external payable whenNotPaused nonReentrant {
     require(epoch == currentEpoch, "Bet is too early/late");
     require(_bettable(epoch), "Round not bettable");
     require(
@@ -207,13 +195,7 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
    * @notice Bet bull position
    * @param epoch: epoch
    */
-  function betBull(uint256 epoch)
-    external
-    payable
-    whenNotPaused
-    nonReentrant
-    notContract
-  {
+  function betBull(uint256 epoch) external payable whenNotPaused nonReentrant {
     require(epoch == currentEpoch, "Bet is too early/late");
     require(_bettable(epoch), "Round not bettable");
     require(
@@ -252,7 +234,7 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
    * @notice Claim reward for an array of epochs
    * @param epochs: array of epochs
    */
-  function claim(uint256[] calldata epochs) external nonReentrant notContract {
+  function claim(uint256[] calldata epochs) external nonReentrant {
     _claim(msg.sender, epochs);
   }
 
@@ -266,7 +248,6 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
     nonReentrant
     onlyFactory
   {
-    require(!_isContract(user), "Contract not allowed");
     require(user == tx.origin, "Proxy contract not allowed");
     _claim(user, epochs);
   }
@@ -288,11 +269,14 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
       );
 
       uint256 addedReward = 0;
+      Round memory round = rounds[epoch];
 
       // Round valid, claim rewards
-      if (rounds[epoch].oracleCalled) {
+      if (round.oracleCalled && _isSingleSidedRound(round)) {
+        require(refundable(epoch, user), "Not eligible for refund");
+        addedReward = ledger[epoch][user].amount;
+      } else if (round.oracleCalled) {
         require(claimable(epoch, user), "Not eligible for claim");
-        Round memory round = rounds[epoch];
 
         if (round.lockPrice == round.closePrice) {
           addedReward = ledger[epoch][user].amount;
@@ -530,11 +514,29 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
   function refundable(uint256 epoch, address user) public view returns (bool) {
     BetInfo memory betInfo = ledger[epoch][user];
     Round memory round = rounds[epoch];
+    if (betInfo.amount == 0 || betInfo.claimed) {
+      return false;
+    }
+
+    bool roundExpiredWithoutOracle = !round.oracleCalled &&
+      block.timestamp > round.closeTimestamp + bufferSeconds();
+
+    bool singleSidedRoundRefundable = round.oracleCalled &&
+      block.timestamp > round.closeTimestamp &&
+      _isSingleSidedRound(round);
+
+    return roundExpiredWithoutOracle || singleSidedRoundRefundable;
+  }
+
+  function _isSingleSidedRound(Round memory round)
+    internal
+    pure
+    returns (bool)
+  {
     return
-      !round.oracleCalled &&
-      !betInfo.claimed &&
-      block.timestamp > round.closeTimestamp + bufferSeconds() &&
-      betInfo.amount != 0;
+      round.totalAmount > 0 &&
+      ((round.bullAmount == 0 && round.bearAmount > 0) ||
+        (round.bearAmount == 0 && round.bullAmount > 0));
   }
 
   /**
@@ -780,18 +782,6 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
       : int256(unsignedNormalized);
 
     return (price.publishTime, normalizedPrice);
-  }
-
-  /**
-   * @notice Returns true if `account` is a contract.
-   * @param account: account address
-   */
-  function _isContract(address account) internal view returns (bool) {
-    uint256 size;
-    assembly {
-      size := extcodesize(account)
-    }
-    return size > 0;
   }
 
   function adminAddress() public view returns (address) {

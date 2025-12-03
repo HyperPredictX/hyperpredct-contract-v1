@@ -2423,6 +2423,114 @@ contract(
       assert.equal(await balance.current(hyperPredictionV1Pair.address), 0);
     });
 
+    it("Should refund single sided bull round after oracle call", async () => {
+      const price120 = 12000000000; // $120
+      await updateOraclePrice(price120);
+      await hyperPredictionV1Pair.genesisStartRound();
+      currentEpoch = await hyperPredictionV1Pair.currentEpoch();
+
+      await hyperPredictionV1Pair.betBull(currentEpoch, {
+        from: bullUser1,
+        value: ether("1"),
+      });
+      await hyperPredictionV1Pair.betBull(currentEpoch, {
+        from: bullUser2,
+        value: ether("2"),
+      });
+
+      await nextEpoch();
+      const price130 = 13000000000; // $130
+      await updateOraclePrice(price130);
+      await hyperPredictionV1Pair.genesisLockRound();
+
+      await nextEpoch();
+      const price140 = 14000000000; // $140
+      await updateOraclePrice(price140);
+      await hyperPredictionV1Pair.executeRound();
+
+      await time.increaseTo((await time.latest()).toNumber() + 1);
+      assert.equal(await hyperPredictionV1Pair.refundable(1, bullUser1), true);
+      assert.equal(await hyperPredictionV1Pair.refundable(1, bullUser2), true);
+
+      let tx = await hyperPredictionV1Pair.claim([1], { from: bullUser1 });
+      expectEvent(tx, "Claim", {
+        sender: bullUser1,
+        epoch: new BN("1"),
+        amount: ether("1"),
+      });
+
+      tx = await hyperPredictionV1Pair.claim([1], { from: bullUser2 });
+      expectEvent(tx, "Claim", {
+        sender: bullUser2,
+        epoch: new BN("1"),
+        amount: ether("2"),
+      });
+
+      await expectRevert(
+        hyperPredictionV1Pair.claim([1], { from: bullUser1 }),
+        "Not eligible for refund"
+      );
+      await expectRevert(
+        hyperPredictionV1Pair.claim([1], { from: bullUser2 }),
+        "Not eligible for refund"
+      );
+      assert.equal(await balance.current(hyperPredictionV1Pair.address), 0);
+    });
+
+    it("Should refund single sided bear round after oracle call", async () => {
+      const price200 = 20000000000; // $200
+      await updateOraclePrice(price200);
+      await hyperPredictionV1Pair.genesisStartRound();
+      currentEpoch = await hyperPredictionV1Pair.currentEpoch();
+
+      await hyperPredictionV1Pair.betBear(currentEpoch, {
+        from: bearUser1,
+        value: ether("1"),
+      });
+      await hyperPredictionV1Pair.betBear(currentEpoch, {
+        from: bearUser2,
+        value: ether("2"),
+      });
+
+      await nextEpoch();
+      const price190 = 19000000000; // $190
+      await updateOraclePrice(price190);
+      await hyperPredictionV1Pair.genesisLockRound();
+
+      await nextEpoch();
+      const price180 = 18000000000; // $180
+      await updateOraclePrice(price180);
+      await hyperPredictionV1Pair.executeRound();
+
+      await time.increaseTo((await time.latest()).toNumber() + 1);
+      assert.equal(await hyperPredictionV1Pair.refundable(1, bearUser1), true);
+      assert.equal(await hyperPredictionV1Pair.refundable(1, bearUser2), true);
+
+      let tx = await hyperPredictionV1Pair.claim([1], { from: bearUser1 });
+      expectEvent(tx, "Claim", {
+        sender: bearUser1,
+        epoch: new BN("1"),
+        amount: ether("1"),
+      });
+
+      tx = await hyperPredictionV1Pair.claim([1], { from: bearUser2 });
+      expectEvent(tx, "Claim", {
+        sender: bearUser2,
+        epoch: new BN("1"),
+        amount: ether("2"),
+      });
+
+      await expectRevert(
+        hyperPredictionV1Pair.claim([1], { from: bearUser1 }),
+        "Not eligible for refund"
+      );
+      await expectRevert(
+        hyperPredictionV1Pair.claim([1], { from: bearUser2 }),
+        "Not eligible for refund"
+      );
+      assert.equal(await balance.current(hyperPredictionV1Pair.address), 0);
+    });
+
     it("Rejections for bet bulls/bears work as expected", async () => {
       // Epoch 0
       await expectRevert(

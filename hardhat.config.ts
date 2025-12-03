@@ -17,16 +17,18 @@ const config: HardhatUserConfig = {
     hardhat: {
       allowUnlimitedContractSize: true,
     },
-    hyperevm_mainnet: {
-      url: process.env.HYPEREVM_RPC_URL || "https://rpc.hyperliquid.xyz/evm",
-      chainId: 999,
+    bsc_mainnet: {
+      url:
+        process.env.BINANCE_MAINNET_RPC_URL ||
+        "https://bsc-dataseed.bnbchain.org",
+      chainId: 56,
       accounts: [adminPk, operatorPk].filter(Boolean) as string[],
     },
-    hyperevm_testnet: {
+    bsc_testnet: {
       url:
-        process.env.HYPEREVM_TESTNET_RPC_URL ||
-        "https://rpc.hyperliquid-testnet.xyz/evm",
-      chainId: 998,
+        process.env.BINANCE_TESTNET_RPC_URL ||
+        "https://bsc-testnet.bnbchain.org",
+      chainId: 97,
       accounts: [adminPk, operatorPk, ...testerPks].filter(Boolean) as string[],
     },
   },
