@@ -582,7 +582,7 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
     int256 closePrice = round.closePrice;
     uint256 total = round.totalAmount;
 
-    if (closePrice == lockPrice) {
+    if (_isSingleSidedRound(round) || (closePrice == lockPrice)) {
       round.rewardBaseCalAmount = 0;
       round.rewardAmount = 0;
       referralAmountPerRound[epoch] = 0;

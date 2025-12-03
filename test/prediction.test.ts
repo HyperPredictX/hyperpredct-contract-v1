@@ -2251,11 +2251,31 @@ contract(
       await updateOraclePrice(price140);
       await hyperPredictionV1Pair.executeRound();
 
+      assert.equal(await hyperPredictionV1Pair.treasuryAmount(), 0);
+      assert.equal(
+        (await hyperPredictionV1Pair.referralAmountPerRound("1")).toString(),
+        "0"
+      );
+
+      const pairBalanceBeforeTreasuryClaim = await betToken.balanceOf(
+        hyperPredictionV1Pair.address
+      );
+      let tx = await expectTokenDelta(
+        admin,
+        () => hyperPredictionV1Pair.claimTreasury({ from: admin }),
+        ether("0")
+      );
+      expectEvent(tx, "TreasuryClaim", { amount: ether("0") });
+      assert.equal(
+        (await betToken.balanceOf(hyperPredictionV1Pair.address)).toString(),
+        pairBalanceBeforeTreasuryClaim.toString()
+      );
+
       await time.increaseTo((await time.latest()).toNumber() + 1);
       assert.equal(await hyperPredictionV1Pair.refundable(1, bullUser1), true);
       assert.equal(await hyperPredictionV1Pair.refundable(1, bullUser2), true);
 
-      let tx = await hyperPredictionV1Pair.claim([1], { from: bullUser1 });
+      tx = await hyperPredictionV1Pair.claim([1], { from: bullUser1 });
       expectEvent(tx, "Claim", {
         sender: bullUser1,
         epoch: new BN("1"),
@@ -2299,11 +2319,31 @@ contract(
       await updateOraclePrice(price180);
       await hyperPredictionV1Pair.executeRound();
 
+      assert.equal(await hyperPredictionV1Pair.treasuryAmount(), 0);
+      assert.equal(
+        (await hyperPredictionV1Pair.referralAmountPerRound("1")).toString(),
+        "0"
+      );
+
+      const bearPairBalanceBeforeTreasuryClaim = await betToken.balanceOf(
+        hyperPredictionV1Pair.address
+      );
+      let tx = await expectTokenDelta(
+        admin,
+        () => hyperPredictionV1Pair.claimTreasury({ from: admin }),
+        ether("0")
+      );
+      expectEvent(tx, "TreasuryClaim", { amount: ether("0") });
+      assert.equal(
+        (await betToken.balanceOf(hyperPredictionV1Pair.address)).toString(),
+        bearPairBalanceBeforeTreasuryClaim.toString()
+      );
+
       await time.increaseTo((await time.latest()).toNumber() + 1);
       assert.equal(await hyperPredictionV1Pair.refundable(1, bearUser1), true);
       assert.equal(await hyperPredictionV1Pair.refundable(1, bearUser2), true);
 
-      let tx = await hyperPredictionV1Pair.claim([1], { from: bearUser1 });
+      tx = await hyperPredictionV1Pair.claim([1], { from: bearUser1 });
       expectEvent(tx, "Claim", {
         sender: bearUser1,
         epoch: new BN("1"),
