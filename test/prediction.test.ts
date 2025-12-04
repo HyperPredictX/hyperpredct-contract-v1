@@ -861,6 +861,110 @@ contract(
       assert.equal(bearLedger.amount.toString(), bearBet.toString());
     });
 
+    it("Should allow contract accounts to bet via the factory", async () => {
+      await hyperPredictionV1Pair.genesisStartRound();
+      currentEpoch = await hyperPredictionV1Pair.currentEpoch();
+
+      const proxyFactory = await ethers.getContractFactory("FactoryProxyUser");
+      const bullSigner = await ethers.getSigner(bullUser1);
+      const proxy = await proxyFactory.connect(bullSigner).deploy(factory.address);
+      await proxy.deployed();
+
+      const bullBetBN = ether("2");
+      const bullBet = ethers.BigNumber.from(bullBetBN.toString());
+      await betToken.connect(bullSigner).transfer(proxy.address, bullBet);
+      await proxy.connect(bullSigner).approveFactory(bullBet);
+
+      await proxy
+        .connect(bullSigner)
+        .placeBet(
+          hyperPredictionV1Pair.address,
+          true,
+          ethers.BigNumber.from(currentEpoch.toString()),
+          bullBet
+        );
+
+      const round = await hyperPredictionV1Pair.rounds(currentEpoch);
+      assert.equal(round.totalAmount.toString(), bullBet.toString());
+      assert.equal(round.bullAmount.toString(), bullBet.toString());
+
+      const ledger = await hyperPredictionV1Pair.ledger(currentEpoch, proxy.address);
+      assert.equal(ledger.position, Position.Bull);
+      assert.equal(ledger.amount.toString(), bullBet.toString());
+      assert.equal(
+        (await betToken.balanceOf(proxy.address)).toString(),
+        "0"
+      );
+      assert.equal(
+        (await betToken.balanceOf(factory.address)).toString(),
+        "0"
+      );
+    });
+
+    it("Should allow contract accounts to claim via the factory", async () => {
+      const proxyFactory = await ethers.getContractFactory("FactoryProxyUser");
+      const bullSigner = await ethers.getSigner(bullUser1);
+      const proxy = await proxyFactory.connect(bullSigner).deploy(factory.address);
+      await proxy.deployed();
+
+      const startPrice = 15000000000; // $150
+      await updateOraclePrice(startPrice);
+      await hyperPredictionV1Pair.genesisStartRound();
+      currentEpoch = await hyperPredictionV1Pair.currentEpoch();
+
+      const bullBetBN = ether("5");
+      const bullBet = ethers.BigNumber.from(bullBetBN.toString());
+      const bearBet = ether("3");
+
+      await betToken.connect(bullSigner).transfer(proxy.address, bullBet);
+      await proxy.connect(bullSigner).approveFactory(bullBet);
+      await proxy
+        .connect(bullSigner)
+        .placeBet(
+          hyperPredictionV1Pair.address,
+          true,
+          ethers.BigNumber.from(currentEpoch.toString()),
+          bullBet
+        );
+
+      await hyperPredictionV1Pair.betBear(currentEpoch, bearBet, {
+        from: bearUser1,
+      });
+
+      await nextEpoch();
+      const lockPrice = 16000000000; // $160
+      await updateOraclePrice(lockPrice);
+      await hyperPredictionV1Pair.genesisLockRound();
+
+      await nextEpoch();
+      const closePrice = 17000000000; // $170
+      await updateOraclePrice(closePrice);
+      await hyperPredictionV1Pair.executeRound();
+      assert.equal(
+        await hyperPredictionV1Pair.claimable(1, proxy.address),
+        true
+      );
+
+      await proxy.connect(bullSigner).batchClaim([
+        { pair: hyperPredictionV1Pair.address, epochs: [ethers.BigNumber.from(1)] },
+      ]);
+
+      const expectedReward = await expectedClaimAmount(
+        1,
+        proxy.address,
+        bullBetBN
+      );
+
+      assert.equal(
+        (await betToken.balanceOf(proxy.address)).toString(),
+        expectedReward.toString()
+      );
+      assert.equal(
+        await hyperPredictionV1Pair.claimable(1, proxy.address),
+        false
+      );
+    });
+
     it("Should only allow adding bets to the same position", async () => {
       // Epoch 1
       await hyperPredictionV1Pair.genesisStartRound();

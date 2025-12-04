@@ -177,7 +177,6 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
     uint256 epoch,
     uint256 amount
   ) external whenNotPaused nonReentrant onlyFactory {
-    require(user == tx.origin, "Proxy contract not allowed");
     _bet(Position.Bear, user, epoch, amount, true);
   }
 
@@ -203,7 +202,6 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
     uint256 epoch,
     uint256 amount
   ) external whenNotPaused nonReentrant onlyFactory {
-    require(user == tx.origin, "Proxy contract not allowed");
     _bet(Position.Bull, user, epoch, amount, true);
   }
 
@@ -274,7 +272,6 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
     nonReentrant
     onlyFactory
   {
-    require(user == tx.origin, "Proxy contract not allowed");
     _claim(user, epochs);
   }
 
