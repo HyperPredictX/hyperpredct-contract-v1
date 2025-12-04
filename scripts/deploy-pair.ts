@@ -47,7 +47,8 @@ const main = async () => {
       config.Pyth[networkName],
       config.priceId,
       config.Operator[networkName],
-      config.Interval
+      config.Interval,
+      config.TokenPair
     );
     const receipt = await tx.wait();
 

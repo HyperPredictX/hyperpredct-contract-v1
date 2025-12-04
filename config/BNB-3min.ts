@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 export default {
+  TokenPair: "BNB/USD",
   Pyth: {
     bsc_mainnet: "0x4D7E825f80bDf85e913E0DD2A2D54927e9dE1594",
     bsc_testnet: "0x5744Cbf430D99456a0A8771208b674F27f8EF0Fb",
@@ -12,7 +13,7 @@ export default {
   },
   HyperPredictV1Pair: {
     bsc_mainnet: "0x85a7d814e3d79e87cc0dfda8a9c2a7ac83dc7524",
-    bsc_testnet: "0xce97bb80b9f106f9c09749dbc47c2e04f52595f6", // 3 min
+    bsc_testnet: "0xb7ff0d220e5653717f7c3a9ed116853136efca97", // 3 min
   },
   Interval: 180,
 };

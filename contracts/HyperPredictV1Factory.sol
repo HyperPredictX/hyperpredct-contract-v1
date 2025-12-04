@@ -38,7 +38,8 @@ contract HyperPredictV1Factory is Ownable {
     address indexed oracle,
     bytes32 indexed priceId,
     address operator,
-    uint256 intervalSeconds
+    uint256 intervalSeconds,
+    string tokenPair
   );
 
   event NewAdminAddress(address admin);
@@ -94,12 +95,14 @@ contract HyperPredictV1Factory is Ownable {
    * @param _priceId Pyth price ID
    * @param _operatorAddress operator address for this pair
    * @param _intervalSeconds round interval in seconds
+   * @param _tokenPair name of the token pair (e.g., "BTC/USD")
    */
   function createPair(
     address _oracleAddress,
     bytes32 _priceId,
     address _operatorAddress,
-    uint256 _intervalSeconds
+    uint256 _intervalSeconds,
+    string memory _tokenPair
   ) external onlyAdmin returns (address pair) {
     require(_oracleAddress != address(0), "oracle zero addr");
     require(_operatorAddress != address(0), "operator zero addr");
@@ -121,7 +124,8 @@ contract HyperPredictV1Factory is Ownable {
       _oracleAddress,
       _priceId,
       _operatorAddress,
-      _intervalSeconds
+      _intervalSeconds,
+      _tokenPair
     );
   }
 

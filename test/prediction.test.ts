@@ -31,9 +31,7 @@ const INITIAL_TREASURY_RATE = 0.005; // 0.5%
 const INITIAL_TREASURY_RATE_WITH_REFERRAL = 0.0025; // 0.25%
 const INITIAL_REFERRAL_RATE = 0.0025; // 0.25%
 const INITIAL_REWARD_RATE = 1 - INITIAL_TREASURY_RATE; // 99.5%
-
-const INITIAL_REWARD_RATE_WITH_REFERRAL =
-  INITIAL_REWARD_RATE + (INITIAL_TREASURY_RATE - INITIAL_TREASURY_RATE_WITH_REFERRAL);
+const TOKEN_PAIR = "BNB/USD";
 
 // Enum: 0 = Bull, 1 = Bear
 const Position = {
@@ -103,10 +101,7 @@ contract(
       const before = await betToken.balanceOf(address);
       const tx = await action();
       const after = await betToken.balanceOf(address);
-      assert.equal(
-        after.sub(before).toString(),
-        expectedDelta.toString()
-      );
+      assert.equal(after.sub(before).toString(), expectedDelta.toString());
       return tx;
     };
 
@@ -162,9 +157,7 @@ contract(
           .mul(treasuryBps.sub(treasuryWithRefBps))
           .div(basisPoints);
         if (!refundPool.isZero()) {
-          const refundAllocated = refundPool
-            .mul(betAmountWei)
-            .div(rewardBase);
+          const refundAllocated = refundPool.mul(betAmountWei).div(rewardBase);
           payout = payout.add(refundAllocated);
         }
       }
@@ -196,9 +189,7 @@ contract(
         return new BN(0);
       }
 
-      const referralPool = totalAmount
-        .mul(referralBps)
-        .div(new BN("10000"));
+      const referralPool = totalAmount.mul(referralBps).div(new BN("10000"));
       const betAmount = new BN(
         (await hyperPredictionV1Pair.ledger(epoch, user)).amount.toString()
       );
@@ -249,6 +240,7 @@ contract(
         priceId,
         operator,
         INTERVAL_SECONDS,
+        TOKEN_PAIR,
         { from: admin }
       );
 
@@ -513,9 +505,15 @@ contract(
       await hyperPredictionV1Pair.genesisStartRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1.1"), { from: bullUser1 }); // 1.1 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1.2"), { from: bullUser2 }); // 1.2 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("1.4"), { from: bearUser1 }); // 1.4 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1.1"), {
+        from: bullUser1,
+      }); // 1.1 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1.2"), {
+        from: bullUser2,
+      }); // 1.2 ETH
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("1.4"), {
+        from: bearUser1,
+      }); // 1.4 ETH
 
       assert.equal(
         (await betToken.balanceOf(hyperPredictionV1Pair.address)).toString(),
@@ -579,9 +577,15 @@ contract(
       await hyperPredictionV1Pair.genesisLockRound(); // For round 1
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2.1"), { from: bullUser1 }); // 2.1 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2.2"), { from: bullUser2 }); // 2.2 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("2.4"), { from: bearUser1 }); // 2.4 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2.1"), {
+        from: bullUser1,
+      }); // 2.1 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2.2"), {
+        from: bullUser2,
+      }); // 2.2 ETH
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("2.4"), {
+        from: bearUser1,
+      }); // 2.4 ETH
 
       assert.equal(
         (await betToken.balanceOf(hyperPredictionV1Pair.address)).toString(),
@@ -646,9 +650,21 @@ contract(
       await hyperPredictionV1Pair.executeRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("3.1").toString(), { from: bullUser1 }); // 3.1 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("3.2").toString(), { from: bullUser2 }); // 3.2 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("3.4").toString(), { from: bearUser1 }); // 4.3 ETH
+      await hyperPredictionV1Pair.betBull(
+        currentEpoch,
+        ether("3.1").toString(),
+        { from: bullUser1 }
+      ); // 3.1 ETH
+      await hyperPredictionV1Pair.betBull(
+        currentEpoch,
+        ether("3.2").toString(),
+        { from: bullUser2 }
+      ); // 3.2 ETH
+      await hyperPredictionV1Pair.betBear(
+        currentEpoch,
+        ether("3.4").toString(),
+        { from: bearUser1 }
+      ); // 4.3 ETH
 
       assert.equal(
         (await betToken.balanceOf(hyperPredictionV1Pair.address)).toString(),
@@ -713,9 +729,21 @@ contract(
       await hyperPredictionV1Pair.executeRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("4.1").toString(), { from: bullUser1 }); // 4.1 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("4.2").toString(), { from: bullUser2 }); // 4.2 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("4.4").toString(), { from: bearUser1 }); // 4.4 ETH
+      await hyperPredictionV1Pair.betBull(
+        currentEpoch,
+        ether("4.1").toString(),
+        { from: bullUser1 }
+      ); // 4.1 ETH
+      await hyperPredictionV1Pair.betBull(
+        currentEpoch,
+        ether("4.2").toString(),
+        { from: bullUser2 }
+      ); // 4.2 ETH
+      await hyperPredictionV1Pair.betBear(
+        currentEpoch,
+        ether("4.4").toString(),
+        { from: bearUser1 }
+      ); // 4.4 ETH
 
       assert.equal(
         (await betToken.balanceOf(hyperPredictionV1Pair.address)).toString(),
@@ -802,10 +830,7 @@ contract(
         (await betToken.balanceOf(hyperPredictionV1Pair.address)).toString(),
         totalBet.toString()
       );
-      assert.equal(
-        (await betToken.balanceOf(factory.address)).toString(),
-        "0"
-      );
+      assert.equal((await betToken.balanceOf(factory.address)).toString(), "0");
       assert.equal(
         (
           await betToken.allowance(
@@ -841,8 +866,12 @@ contract(
       await hyperPredictionV1Pair.genesisStartRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 }); // Success
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2"), { from: bullUser1 }); // Additional bet on same side should succeed
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser1,
+      }); // Success
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2"), {
+        from: bullUser1,
+      }); // Additional bet on same side should succeed
       assert.equal(
         (await hyperPredictionV1Pair.ledger(currentEpoch, bullUser1)).amount,
         ether("3").toString()
@@ -852,12 +881,18 @@ contract(
         "1"
       );
       await expectRevert(
-        hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), { from: bullUser1 }),
+        hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), {
+          from: bullUser1,
+        }),
         "Can only add to existing position"
       );
 
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), { from: bearUser1 }); // Success
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), { from: bearUser1 }); // Additional bet on same side should succeed
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), {
+        from: bearUser1,
+      }); // Success
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), {
+        from: bearUser1,
+      }); // Additional bet on same side should succeed
       assert.equal(
         (await hyperPredictionV1Pair.ledger(currentEpoch, bearUser1)).amount,
         ether("2").toString()
@@ -867,7 +902,9 @@ contract(
         "1"
       );
       await expectRevert(
-        hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bearUser1 }),
+        hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+          from: bearUser1,
+        }),
         "Can only add to existing position"
       );
 
@@ -876,29 +913,41 @@ contract(
       await hyperPredictionV1Pair.genesisLockRound(); // For round 1
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), { from: bullUser1 }); // Able to choose new position in new round
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), {
+        from: bullUser1,
+      }); // Able to choose new position in new round
       assert.equal(
         (await hyperPredictionV1Pair.getUserRoundsLength(bullUser1)).toString(),
         "2"
       );
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("2"), { from: bullUser1 }); // Additional bet still allowed
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("2"), {
+        from: bullUser1,
+      }); // Additional bet still allowed
       assert.equal(
         (await hyperPredictionV1Pair.ledger(currentEpoch, bullUser1)).amount,
         ether("3").toString()
       );
       await expectRevert(
-        hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 }),
+        hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+          from: bullUser1,
+        }),
         "Can only add to existing position"
       );
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bearUser1 }); // Different user can still pick bull
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2"), { from: bearUser1 });
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bearUser1,
+      }); // Different user can still pick bull
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2"), {
+        from: bearUser1,
+      });
       assert.equal(
         (await hyperPredictionV1Pair.ledger(currentEpoch, bearUser1)).amount,
         ether("3").toString()
       );
       await expectRevert(
-        hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), { from: bearUser1 }),
+        hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), {
+          from: bearUser1,
+        }),
         "Can only add to existing position"
       );
     });
@@ -909,10 +958,14 @@ contract(
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
       await expectRevert(
-        hyperPredictionV1Pair.betBull(currentEpoch, ether("0.5"), { from: bullUser1 }),
+        hyperPredictionV1Pair.betBull(currentEpoch, ether("0.5"), {
+          from: bullUser1,
+        }),
         "Bet amount must be greater than minBetAmount"
       ); // 0.5 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 }); // Success
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser1,
+      }); // Success
 
       // Epoch 2
       await nextEpoch();
@@ -920,10 +973,14 @@ contract(
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
       await expectRevert(
-        hyperPredictionV1Pair.betBull(currentEpoch, ether("0.5"), { from: bullUser1 }),
+        hyperPredictionV1Pair.betBull(currentEpoch, ether("0.5"), {
+          from: bullUser1,
+        }),
         "Bet amount must be greater than minBetAmount"
       ); // 0.5 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 }); // Success
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser1,
+      }); // Success
 
       // Epoch 3
       await nextEpoch();
@@ -932,10 +989,14 @@ contract(
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
       await expectRevert(
-        hyperPredictionV1Pair.betBull(currentEpoch, ether("0.5"), { from: bullUser1 }),
+        hyperPredictionV1Pair.betBull(currentEpoch, ether("0.5"), {
+          from: bullUser1,
+        }),
         "Bet amount must be greater than minBetAmount"
       ); // 0.5 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 }); // Success
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser1,
+      }); // Success
     });
 
     it("Should record rewards", async () => {
@@ -945,9 +1006,15 @@ contract(
       await hyperPredictionV1Pair.genesisStartRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1.1"), { from: bullUser1 }); // 1.1 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1.2"), { from: bullUser2 }); // 1.2 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("1.4"), { from: bearUser1 }); // 1.4 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1.1"), {
+        from: bullUser1,
+      }); // 1.1 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1.2"), {
+        from: bullUser2,
+      }); // 1.2 ETH
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("1.4"), {
+        from: bearUser1,
+      }); // 1.4 ETH
 
       assert.equal(
         (await hyperPredictionV1Pair.rounds(1)).rewardBaseCalAmount,
@@ -967,9 +1034,15 @@ contract(
       await hyperPredictionV1Pair.genesisLockRound(); // For round 1
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2.1"), { from: bullUser1 }); // 2.1 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2.2"), { from: bullUser2 }); // 2.2 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("2.4"), { from: bearUser1 }); // 2.4 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2.1"), {
+        from: bullUser1,
+      }); // 2.1 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2.2"), {
+        from: bullUser2,
+      }); // 2.2 ETH
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("2.4"), {
+        from: bearUser1,
+      }); // 2.4 ETH
 
       assert.equal(
         (await hyperPredictionV1Pair.rounds(1)).rewardBaseCalAmount,
@@ -994,9 +1067,21 @@ contract(
       await hyperPredictionV1Pair.executeRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("3.1").toString(), { from: bullUser1 }); // 3.1 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("3.2").toString(), { from: bullUser2 }); // 3.2 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("3.4").toString(), { from: bearUser1 }); // 3.4 ETH
+      await hyperPredictionV1Pair.betBull(
+        currentEpoch,
+        ether("3.1").toString(),
+        { from: bullUser1 }
+      ); // 3.1 ETH
+      await hyperPredictionV1Pair.betBull(
+        currentEpoch,
+        ether("3.2").toString(),
+        { from: bullUser2 }
+      ); // 3.2 ETH
+      await hyperPredictionV1Pair.betBear(
+        currentEpoch,
+        ether("3.4").toString(),
+        { from: bearUser1 }
+      ); // 3.4 ETH
 
       assert.equal(
         (await hyperPredictionV1Pair.rounds(1)).rewardBaseCalAmount,
@@ -1027,9 +1112,21 @@ contract(
       await hyperPredictionV1Pair.executeRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("4.1").toString(), { from: bullUser1 }); // 4.1 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("4.2").toString(), { from: bullUser2 }); // 4.2 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("4.4").toString(), { from: bearUser1 }); // 4.4 ETH
+      await hyperPredictionV1Pair.betBull(
+        currentEpoch,
+        ether("4.1").toString(),
+        { from: bullUser1 }
+      ); // 4.1 ETH
+      await hyperPredictionV1Pair.betBull(
+        currentEpoch,
+        ether("4.2").toString(),
+        { from: bullUser2 }
+      ); // 4.2 ETH
+      await hyperPredictionV1Pair.betBear(
+        currentEpoch,
+        ether("4.4").toString(),
+        { from: bearUser1 }
+      ); // 4.4 ETH
 
       assert.equal(
         (await hyperPredictionV1Pair.rounds(1)).rewardBaseCalAmount,
@@ -1090,9 +1187,15 @@ contract(
       const epoch1BullUser1Bet = ether("1");
       const epoch1BullUser2Bet = ether("2");
       const epoch1BearUser1Bet = ether("4");
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 }); // 1 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2"), { from: bullUser2 }); // 2 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("4"), { from: bearUser1 }); // 4 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser1,
+      }); // 1 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2"), {
+        from: bullUser2,
+      }); // 2 ETH
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("4"), {
+        from: bearUser1,
+      }); // 4 ETH
 
       assert.equal(await hyperPredictionV1Pair.claimable(1, bullUser1), false);
       assert.equal(await hyperPredictionV1Pair.claimable(1, bullUser2), false);
@@ -1132,15 +1235,27 @@ contract(
       const epoch2BullUser1Bet = ether("21");
       const epoch2BullUser2Bet = ether("22");
       const epoch2BearUser1Bet = ether("24");
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("3.1").toString(), {
-        from: bullUser1,
-      }); // 3.1 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("3.2").toString(), {
-        from: bullUser2,
-      }); // 3.2 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("3.4").toString(), {
-        from: bearUser1,
-      }); // 3.4 ETH
+      await hyperPredictionV1Pair.betBull(
+        currentEpoch,
+        ether("3.1").toString(),
+        {
+          from: bullUser1,
+        }
+      ); // 3.1 ETH
+      await hyperPredictionV1Pair.betBull(
+        currentEpoch,
+        ether("3.2").toString(),
+        {
+          from: bullUser2,
+        }
+      ); // 3.2 ETH
+      await hyperPredictionV1Pair.betBear(
+        currentEpoch,
+        ether("3.4").toString(),
+        {
+          from: bearUser1,
+        }
+      ); // 3.4 ETH
 
       assert.equal(await hyperPredictionV1Pair.claimable(1, bullUser1), false);
       assert.equal(await hyperPredictionV1Pair.claimable(1, bullUser2), false);
@@ -1322,8 +1437,12 @@ contract(
 
       const betAmount = ether("100");
 
-      await hyperPredictionV1Pair.betBull(firstEpoch, betAmount, { from: winner });
-      await hyperPredictionV1Pair.betBear(firstEpoch, betAmount, { from: loser });
+      await hyperPredictionV1Pair.betBull(firstEpoch, betAmount, {
+        from: winner,
+      });
+      await hyperPredictionV1Pair.betBear(firstEpoch, betAmount, {
+        from: loser,
+      });
 
       await nextEpoch();
       await updateOraclePrice(price120);
@@ -1437,8 +1556,12 @@ contract(
       await hyperPredictionV1Pair.genesisStartRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 });
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("2"), { from: bearUser1 });
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser1,
+      });
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("2"), {
+        from: bearUser1,
+      });
 
       // Lock round 1 and start round 2
       await nextEpoch();
@@ -1447,8 +1570,12 @@ contract(
       await hyperPredictionV1Pair.genesisLockRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("3"), { from: bullUser1 });
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("4"), { from: bearUser1 });
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("3"), {
+        from: bullUser1,
+      });
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("4"), {
+        from: bearUser1,
+      });
 
       // Resolve round 1 (bull) and lock round 2
       await nextEpoch();
@@ -1529,9 +1656,15 @@ contract(
       await hyperPredictionV1Pair.genesisStartRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 }); // 1 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2"), { from: bullUser2 }); // 2 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("4"), { from: bearUser1 }); // 4 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser1,
+      }); // 1 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2"), {
+        from: bullUser2,
+      }); // 2 ETH
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("4"), {
+        from: bearUser1,
+      }); // 4 ETH
 
       assert.equal(await hyperPredictionV1Pair.claimable(1, bullUser1), false);
       assert.equal(await hyperPredictionV1Pair.claimable(1, bullUser2), false);
@@ -1568,9 +1701,15 @@ contract(
       await hyperPredictionV1Pair.genesisLockRound(); // For round 1
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2.1"), { from: bullUser1 }); // 2.1 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2.2"), { from: bullUser2 }); // 2.2 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("2.4"), { from: bearUser1 }); // 2.4 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2.1"), {
+        from: bullUser1,
+      }); // 2.1 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2.2"), {
+        from: bullUser2,
+      }); // 2.2 ETH
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("2.4"), {
+        from: bearUser1,
+      }); // 2.4 ETH
 
       assert.equal(await hyperPredictionV1Pair.claimable(1, bullUser1), false);
       assert.equal(await hyperPredictionV1Pair.claimable(1, bullUser2), false);
@@ -1897,6 +2036,7 @@ contract(
         priceId,
         operator,
         INTERVAL_SECONDS,
+        TOKEN_PAIR,
         { from: admin }
       );
       const secondPairAddress = await factory.allPairs(1);
@@ -1908,8 +2048,12 @@ contract(
       await updateOraclePrice(firstStart);
       await hyperPredictionV1Pair.genesisStartRound();
       let epoch = await hyperPredictionV1Pair.currentEpoch();
-      await hyperPredictionV1Pair.betBull(epoch, ether("2"), { from: bullUser1 });
-      await hyperPredictionV1Pair.betBear(epoch, ether("3"), { from: bearUser1 });
+      await hyperPredictionV1Pair.betBull(epoch, ether("2"), {
+        from: bullUser1,
+      });
+      await hyperPredictionV1Pair.betBear(epoch, ether("3"), {
+        from: bearUser1,
+      });
 
       await nextEpoch();
       const firstLock = 16000000000; // $160
@@ -1987,6 +2131,7 @@ contract(
         priceId,
         operator,
         INTERVAL_SECONDS,
+        TOKEN_PAIR,
         { from: admin }
       );
       const foreignPair = await HyperPredictV1Pair.at(
@@ -2008,9 +2153,15 @@ contract(
       await hyperPredictionV1Pair.genesisStartRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 }); // 1 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2"), { from: bullUser2 }); // 2 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("4"), { from: bearUser1 }); // 4 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser1,
+      }); // 1 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2"), {
+        from: bullUser2,
+      }); // 2 ETH
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("4"), {
+        from: bearUser1,
+      }); // 4 ETH
 
       // Epoch 2
       await nextEpoch();
@@ -2052,9 +2203,15 @@ contract(
       await hyperPredictionV1Pair.genesisStartRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 }); // 1 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2"), { from: bullUser2 }); // 2 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("4"), { from: bearUser1 }); // 4 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser1,
+      }); // 1 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2"), {
+        from: bullUser2,
+      }); // 2 ETH
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("4"), {
+        from: bearUser1,
+      }); // 4 ETH
       predictionCurrentETH = predictionCurrentETH.add(ether("7"));
 
       assert.equal(await hyperPredictionV1Pair.treasuryAmount(), 0);
@@ -2070,9 +2227,15 @@ contract(
       await hyperPredictionV1Pair.genesisLockRound(); // For round 1
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("21"), { from: bullUser1 }); // 21 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("22"), { from: bullUser2 }); // 22 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("24"), { from: bearUser1 }); // 24 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("21"), {
+        from: bullUser1,
+      }); // 21 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("22"), {
+        from: bullUser2,
+      }); // 22 ETH
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("24"), {
+        from: bearUser1,
+      }); // 24 ETH
       predictionCurrentETH = predictionCurrentETH.add(ether("67"));
 
       assert.equal(await hyperPredictionV1Pair.treasuryAmount(), 0);
@@ -2088,9 +2251,15 @@ contract(
       await hyperPredictionV1Pair.executeRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("31"), { from: bullUser1 }); // 31 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("32"), { from: bullUser2 }); // 32 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("34"), { from: bearUser1 }); // 34 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("31"), {
+        from: bullUser1,
+      }); // 31 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("32"), {
+        from: bullUser2,
+      }); // 32 ETH
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("34"), {
+        from: bearUser1,
+      }); // 34 ETH
       predictionCurrentETH = predictionCurrentETH.add(ether("97"));
 
       // Admin claim for Round 1
@@ -2257,9 +2426,15 @@ contract(
       await hyperPredictionV1Pair.genesisStartRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 }); // 1 ETH
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2"), { from: bullUser2 }); // 2 ETH
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("4"), { from: bearUser1 }); // 4 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser1,
+      }); // 1 ETH
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2"), {
+        from: bullUser2,
+      }); // 2 ETH
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("4"), {
+        from: bearUser1,
+      }); // 4 ETH
 
       assert.equal(await hyperPredictionV1Pair.refundable(1, bullUser1), false);
       assert.equal(await hyperPredictionV1Pair.refundable(1, bullUser2), false);
@@ -2356,8 +2531,12 @@ contract(
       await hyperPredictionV1Pair.genesisStartRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 });
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2"), { from: bullUser2 });
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser1,
+      });
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("2"), {
+        from: bullUser2,
+      });
 
       await nextEpoch();
       const price130 = 13000000000; // $130
@@ -2419,8 +2598,12 @@ contract(
       await hyperPredictionV1Pair.genesisStartRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), { from: bearUser1 });
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("2"), { from: bearUser2 });
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), {
+        from: bearUser1,
+      });
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("2"), {
+        from: bearUser2,
+      });
 
       await nextEpoch();
       const price190 = 19000000000; // $190
@@ -2511,11 +2694,15 @@ contract(
 
       // Bets must be higher (or equal) than minBetAmount
       await expectRevert(
-        hyperPredictionV1Pair.betBear("1", ether("0.999999"), { from: bullUser1 }),
+        hyperPredictionV1Pair.betBear("1", ether("0.999999"), {
+          from: bullUser1,
+        }),
         "Bet amount must be greater than minBetAmount"
       );
       await expectRevert(
-        hyperPredictionV1Pair.betBull("1", ether("0.999999"), { from: bullUser1 }),
+        hyperPredictionV1Pair.betBull("1", ether("0.999999"), {
+          from: bullUser1,
+        }),
         "Bet amount must be greater than minBetAmount"
       );
     });
@@ -2594,11 +2781,15 @@ contract(
       let tx = await hyperPredictionV1Pair.pause({ from: admin });
       expectEvent(tx, "Pause", { epoch: new BN(3) });
       await expectRevert(
-        hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 }),
+        hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+          from: bullUser1,
+        }),
         "Pausable: paused"
       );
       await expectRevert(
-        hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), { from: bearUser1 }),
+        hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), {
+          from: bearUser1,
+        }),
         "Pausable: paused"
       );
       await expectRevert(
@@ -2648,42 +2839,66 @@ contract(
       await hyperPredictionV1Pair.genesisStartRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 });
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser2 });
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), { from: bearUser1 });
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser1,
+      });
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser2,
+      });
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), {
+        from: bearUser1,
+      });
 
       await nextEpoch();
       await updateOraclePrice(INITIAL_PRICE);
       await hyperPredictionV1Pair.genesisLockRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 });
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser2 });
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), { from: bearUser1 });
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser1,
+      });
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser2,
+      });
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), {
+        from: bearUser1,
+      });
 
       await nextEpoch();
       await updateOraclePrice(INITIAL_PRICE);
       await hyperPredictionV1Pair.executeRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 });
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser2 });
-      await hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), { from: bearUser1 });
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser1,
+      });
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser2,
+      });
+      await hyperPredictionV1Pair.betBear(currentEpoch, ether("1"), {
+        from: bearUser1,
+      });
 
       await nextEpoch();
       await updateOraclePrice(INITIAL_PRICE);
       await hyperPredictionV1Pair.executeRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 });
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser2 });
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser1,
+      });
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser2,
+      });
 
       await nextEpoch();
       await updateOraclePrice(INITIAL_PRICE);
       await hyperPredictionV1Pair.executeRound();
       currentEpoch = await hyperPredictionV1Pair.currentEpoch();
 
-      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), { from: bullUser1 });
+      await hyperPredictionV1Pair.betBull(currentEpoch, ether("1"), {
+        from: bullUser1,
+      });
 
       // Get by page size of 2
       const pageSize = 2;

@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 export default {
+  TokenPair: "ETH/USD",
   Pyth: {
     bsc_mainnet: "0x4D7E825f80bDf85e913E0DD2A2D54927e9dE1594",
     bsc_testnet: "0x5744Cbf430D99456a0A8771208b674F27f8EF0Fb",
