@@ -3,7 +3,7 @@ import "dotenv/config";
 export default {
   Address: {
     Factory: {
-      bsc_mainnet: "0x32e6c523b3fb3700133b9363c7288b8a919628ee",
+      bsc_mainnet: "0xacfc4ebc48decab75b59a1678e2cdd3b76f07d50",
       bsc_testnet: "0x844042a3ec6e3c3a6a14966cdf1e7832d71c55d6",
     },
     ReferralRegistry: {
