@@ -13,6 +13,25 @@ const GENESIS_LOCK_TX_OVERRIDES = {
   gasLimit: GENESIS_LOCK_GAS_LIMIT,
 };
 
+async function waitUntilTopOfHour() {
+  const now = new Date();
+  const nextHour = new Date(now);
+  nextHour.setMinutes(0, 0, 0);
+  if (nextHour <= now) {
+    nextHour.setHours(nextHour.getHours() + 1);
+  }
+
+  const waitMs = nextHour.getTime() - now.getTime();
+  if (waitMs > 0) {
+    console.log(
+      `Waiting ${Math.ceil(waitMs / 1000)}s to start exactly at ${
+        nextHour.toISOString().split("T")[1]
+      }`
+    );
+    await sleep(waitMs);
+  }
+}
+
 async function runOneContract(HyperPredictV1PairContract: any) {
   const label = `[${await HyperPredictV1PairContract.address}]`;
 
@@ -97,6 +116,8 @@ async function main() {
 
   const { HyperPredictV1PairContract } =
     await fetchHyperPredictV1PairContract();
+
+  await waitUntilTopOfHour();
 
   await runOneContract(HyperPredictV1PairContract);
 }
