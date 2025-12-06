@@ -1,10 +1,5 @@
 import { updatePriceData } from "./getUpdatePriceData";
 
-const EXECUTE_ROUND_GAS_LIMIT = 600_000n;
-const EXECUTE_ROUND_TX_OVERRIDES = {
-  gasLimit: EXECUTE_ROUND_GAS_LIMIT,
-};
-
 export async function executeRound(
   label: string,
   HyperPredictV1PairContract: any
@@ -20,18 +15,14 @@ export async function executeRound(
   await updatePriceData();
   try {
     // If the function with no args exists, this will work.
-    tx = await HyperPredictV1PairContract.executeRound?.(
-      EXECUTE_ROUND_TX_OVERRIDES
-    );
+    tx = await HyperPredictV1PairContract.executeRound?.();
   } catch (e) {
     // Fallback to executeRound(uint256)
     const currentEpoch = await HyperPredictV1PairContract.currentEpoch();
     console.log(
       `executeRound requires epoch. currentEpoch = ${currentEpoch.toString()}`
     );
-    tx = await HyperPredictV1PairContract.executeRound?.(
-      EXECUTE_ROUND_TX_OVERRIDES
-    );
+    tx = await HyperPredictV1PairContract.executeRound?.();
   }
   console.log(`contract: ${label}, tx: ${tx.hash}`);
 

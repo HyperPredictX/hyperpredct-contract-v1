@@ -8,10 +8,7 @@ const main = async () => {
   const networkName = network.name;
 
   // Check if the network is supported.
-  if (
-    networkName === "hyperevm_testnet" ||
-    networkName === "hyperevm_mainnet"
-  ) {
+  if (networkName === "bsc_testnet" || networkName === "bsc_mainnet") {
     console.log(`Deploying to ${networkName} network...`);
 
     // Check if the addresses in the config are set.
@@ -42,6 +39,11 @@ const main = async () => {
       );
     }
 
+    const tokenAddress = config.Address?.ERC20Token?.[networkName];
+    if (!tokenAddress || tokenAddress === ethers.constants.AddressZero) {
+      throw new Error(`Missing Token address for ${networkName}`);
+    }
+
     // Deploy contracts.
     const HyperPredictV1Factory = await ethers.getContractFactory(
       "HyperPredictV1Factory"
@@ -51,13 +53,27 @@ const main = async () => {
       throw new Error(`Missing BufferSeconds config for ${networkName}`);
     }
 
+    const treasuryFee = config.Treasury?.[networkName];
+    if (treasuryFee === undefined) {
+      throw new Error(`Missing Treasury config for ${networkName}`);
+    }
+    const treasuryFeeWithReferral =
+      config.TreasuryWithReferral?.[networkName];
+    if (treasuryFeeWithReferral === undefined) {
+      throw new Error(
+        `Missing TreasuryWithReferral config for ${networkName}`
+      );
+    }
+
     const contract = await HyperPredictV1Factory.deploy(
+      tokenAddress,
       referralRegistryAddress,
       config.Address.Admin[networkName],
       parseEther(config.BetAmount[networkName].toString()).toString(),
       bufferSeconds,
       config.ReferralFee[networkName],
-      config.Treasury[networkName]
+      treasuryFee,
+      treasuryFeeWithReferral
     );
 
     // Wait for the contract to be deployed before exiting the script.

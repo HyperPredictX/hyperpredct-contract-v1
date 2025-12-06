@@ -4,7 +4,6 @@ import { executeRound } from "./executeRound";
 import { fetchHyperPredictV1PairContract } from "./fetchHyperPredictV1PairContract";
 import { updatePriceData } from "./getUpdatePriceData";
 
-const MAX_GAS_PRICE = 20_000_000_000n; // 20 gwei
 const GENESIS_START_GAS_LIMIT = 300_000n;
 const GENESIS_LOCK_GAS_LIMIT = 400_000n;
 const GENESIS_START_TX_OVERRIDES = {
@@ -14,32 +13,8 @@ const GENESIS_LOCK_TX_OVERRIDES = {
   gasLimit: GENESIS_LOCK_GAS_LIMIT,
 };
 
-async function checkGasPrice() {
-  const provider = ethers.provider;
-  var gasPrice = await provider.getGasPrice();
-  if (gasPrice.toBigInt() > MAX_GAS_PRICE) {
-    // raise error to retry
-    throw new Error(
-      `Gas price too high: ${ethers.utils.formatUnits(gasPrice, "gwei")} gwei`
-    );
-  } else {
-    console.log(
-      `Current gas price: ${ethers.utils.formatUnits(gasPrice, "gwei")} gwei`
-    );
-  }
-}
-
 async function runOneContract(HyperPredictV1PairContract: any) {
   const label = `[${await HyperPredictV1PairContract.address}]`;
-  const provider = ethers.provider;
-  var gasPrice = await provider.getGasPrice();
-  console.log(
-    `${label} Current gas price: ${ethers.utils.formatUnits(
-      gasPrice,
-      "gwei"
-    )} gwei`
-  );
-  await updatePriceData();
 
   while (true) {
     try {
@@ -68,33 +43,35 @@ async function runOneContract(HyperPredictV1PairContract: any) {
           `${label} currentEpoch: ${beforeCurrentEpoch.toString()}, paused: ${paused}`
         );
         if (!paused) {
-          await HyperPredictV1PairContract.pause();
+          const pauseTx = await HyperPredictV1PairContract.pause();
+          await pauseTx.wait();
         } else {
           console.log(`${label} already paused`);
         }
-        await HyperPredictV1PairContract.unpause();
-      }
 
-      await checkGasPrice();
+        const unpauseTx = await HyperPredictV1PairContract.unpause();
+        await unpauseTx.wait();
+      }
 
       // 1) startGenesisRound()
       console.log(`${label} Starting genesis round...`);
-      await HyperPredictV1PairContract.genesisStartRound(
+      const startTx = await HyperPredictV1PairContract.genesisStartRound(
         GENESIS_START_TX_OVERRIDES
       );
+      await startTx.wait();
 
       console.log(
         `${label} ...waiting ${intervalSeconds.toString()}s before lockGenesisRound`
       );
       await sleep(1000 * intervalSeconds.toNumber());
 
-      await checkGasPrice();
       // 2) lockGenesisRound()
       console.log(`${label} Locking genesis round...`);
       await updatePriceData();
-      await HyperPredictV1PairContract.genesisLockRound(
+      const lockTx = await HyperPredictV1PairContract.genesisLockRound(
         GENESIS_LOCK_TX_OVERRIDES
       );
+      await lockTx.wait();
 
       // 3) executeRound() in a loop
       while (true) {
@@ -103,7 +80,6 @@ async function runOneContract(HyperPredictV1PairContract: any) {
         );
         await sleep(1000 * intervalSeconds.toNumber());
 
-        await checkGasPrice();
         await executeRound(label, HyperPredictV1PairContract);
       }
     } catch (err) {

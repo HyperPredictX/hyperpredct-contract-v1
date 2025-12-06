@@ -15,10 +15,7 @@ const main = async () => {
   const networkName = network.name;
 
   // Check if the network is supported.
-  if (
-    networkName === "hyperevm_testnet" ||
-    networkName === "hyperevm_mainnet"
-  ) {
+  if (networkName === "bsc_testnet" || networkName === "bsc_mainnet") {
     console.log(`Deploying to ${networkName} network...`);
 
     // Check if the addresses in the config are set.
@@ -46,16 +43,39 @@ const main = async () => {
 
     await HyperPredictV1Factory.connect(admin);
 
-    await HyperPredictV1Factory.createPair(
+    const tx = await HyperPredictV1Factory.createPair(
       config.Pyth[networkName],
       config.priceId,
       config.Operator[networkName],
-      config.Interval
+      config.Interval,
+      config.TokenPair
     );
+    const receipt = await tx.wait();
 
-    const allPairsLength = await HyperPredictV1Factory.allPairsLength();
-    const length = allPairsLength.toNumber();
-    const contractAddress = await HyperPredictV1Factory.allPairs(length - 1);
+    let contractAddress: string | undefined;
+    const pairCreatedTopic =
+      HyperPredictV1Factory.interface.getEventTopic("PairCreated");
+    const pairCreatedEvent = receipt.events?.find(
+      (event) => event.topics?.[0] === pairCreatedTopic
+    );
+    if (pairCreatedEvent && pairCreatedEvent.args) {
+      const args = pairCreatedEvent.args;
+      contractAddress =
+        (args.pair as string | undefined) ?? (args[0] as string | undefined);
+    } else {
+      const allPairsLength = await HyperPredictV1Factory.allPairsLength();
+      if (allPairsLength.isZero()) {
+        throw new Error("No pairs available after deployment");
+      }
+      contractAddress = await HyperPredictV1Factory.allPairs(
+        allPairsLength.sub(1)
+      );
+    }
+
+    if (!contractAddress) {
+      throw new Error("Unable to determine deployed pair address");
+    }
+
     const contract = await ethers.getContractAt(
       "HyperPredictV1Pair",
       contractAddress,

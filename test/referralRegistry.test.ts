@@ -2,11 +2,13 @@ import { expect } from "chai";
 import { ethers, artifacts } from "hardhat";
 
 const HyperPredictV1Factory = artifacts.require("HyperPredictV1Factory");
+const MockERC20 = artifacts.require("MockERC20");
 const BLOCK_COUNT_MULTPLIER = 5;
 const MIN_BET_AMOUNT = ethers.utils.parseEther("1");
 const UPDATE_ALLOWANCE = 30 * BLOCK_COUNT_MULTPLIER; // 30s * multiplier
 const INITIAL_REFERRAL_RATE = 0; // 0%
 const INITIAL_TREASURY_RATE = 0.01; // 1%
+const INITIAL_TREASURY_WITH_REFERRAL_RATE = 0.01; // 1%
 
 describe("ReferralRegistry", function () {
   let referralRegistry: any;
@@ -15,6 +17,7 @@ describe("ReferralRegistry", function () {
   let userA: any;
   let userB: any;
   let userC: any;
+  let betToken: any;
 
   const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
@@ -25,13 +28,19 @@ describe("ReferralRegistry", function () {
     );
     referralRegistry = await ReferralRegistry.deploy();
     await referralRegistry.deployed();
+    betToken = await MockERC20.new("Mock USD Coin", "mUSDC", 18, {
+      from: owner.address,
+    });
+    await betToken.mint(owner.address, ethers.utils.parseEther("1000"));
     factory = await HyperPredictV1Factory.new(
+      betToken.address,
       referralRegistry.address,
       owner.address,
       MIN_BET_AMOUNT.toString(), // uint256
       UPDATE_ALLOWANCE, // uint256
       String(INITIAL_REFERRAL_RATE * 10000),
       String(INITIAL_TREASURY_RATE * 10000),
+      String(INITIAL_TREASURY_WITH_REFERRAL_RATE * 10000),
       { from: owner.address } // deploy tx from
     );
   });

@@ -19,6 +19,7 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
 
   IPyth public oracle;
   IHyperPredictV1Factory public factory;
+  IERC20 public immutable betToken;
 
   bool public genesisLockOnce = false;
   bool public genesisStartOnce = false;
@@ -41,7 +42,6 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
 
   mapping(uint256 => mapping(address => BetInfo)) public ledger;
   mapping(uint256 => Round) public rounds;
-  mapping(uint256 => uint256) public referralAmountPerRound;
   mapping(address => uint256[]) public userRounds;
 
   enum Position {
@@ -129,12 +129,6 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
     _;
   }
 
-  modifier notContract() {
-    require(!_isContract(msg.sender), "Contract not allowed");
-    require(msg.sender == tx.origin, "Proxy contract not allowed");
-    _;
-  }
-
   /**
    * @notice Constructor
    * @param _factory: factory contract address
@@ -152,6 +146,9 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
   ) {
     require(_factory != address(0), "Factory zero addr");
     factory = IHyperPredictV1Factory(_factory);
+    IERC20 tokenAddress = factory.token();
+    require(address(tokenAddress) != address(0), "Token zero addr");
+    betToken = tokenAddress;
     oracle = IPyth(_oracleAddress);
     operatorAddress = _operatorAddress;
     priceId = _priceId;
@@ -162,97 +159,106 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
    * @notice Bet bear position
    * @param epoch: epoch
    */
-  function betBear(uint256 epoch)
+  function betBear(uint256 epoch, uint256 amount)
     external
-    payable
     whenNotPaused
     nonReentrant
-    notContract
   {
-    require(epoch == currentEpoch, "Bet is too early/late");
-    require(_bettable(epoch), "Round not bettable");
-    require(
-      msg.value >= minBetAmount(),
-      "Bet amount must be greater than minBetAmount"
-    );
+    _bet(Position.Bear, msg.sender, epoch, amount, false);
+  }
 
-    // Update round data
-    uint256 amount = msg.value;
-    Round storage round = rounds[epoch];
-    round.totalAmount = round.totalAmount + amount;
-    round.bearAmount = round.bearAmount + amount;
-
-    // Update user data
-    BetInfo storage betInfo = ledger[epoch][msg.sender];
-    bool isFirstBet = betInfo.amount == 0;
-
-    if (isFirstBet) {
-      betInfo.position = Position.Bear;
-    } else {
-      require(
-        betInfo.position == Position.Bear,
-        "Can only add to existing position"
-      );
-    }
-
-    betInfo.amount = betInfo.amount + amount;
-    if (isFirstBet) {
-      userRounds[msg.sender].push(epoch);
-    }
-
-    emit BetBear(msg.sender, epoch, amount);
+  /**
+   * @notice Bet bear position via factory
+   * @param user the bettor address
+   * @param epoch prediction epoch
+   */
+  function betBearViaFactory(
+    address user,
+    uint256 epoch,
+    uint256 amount
+  ) external whenNotPaused nonReentrant onlyFactory {
+    _bet(Position.Bear, user, epoch, amount, true);
   }
 
   /**
    * @notice Bet bull position
    * @param epoch: epoch
    */
-  function betBull(uint256 epoch)
+  function betBull(uint256 epoch, uint256 amount)
     external
-    payable
     whenNotPaused
     nonReentrant
-    notContract
   {
+    _bet(Position.Bull, msg.sender, epoch, amount, false);
+  }
+
+  /**
+   * @notice Bet bull position via factory
+   * @param user the bettor address
+   * @param epoch prediction epoch
+   */
+  function betBullViaFactory(
+    address user,
+    uint256 epoch,
+    uint256 amount
+  ) external whenNotPaused nonReentrant onlyFactory {
+    _bet(Position.Bull, user, epoch, amount, true);
+  }
+
+  function _bet(
+    Position position,
+    address bettor,
+    uint256 epoch,
+    uint256 amount,
+    bool fromFactory
+  ) internal {
     require(epoch == currentEpoch, "Bet is too early/late");
     require(_bettable(epoch), "Round not bettable");
     require(
-      msg.value >= minBetAmount(),
+      amount >= minBetAmount(),
       "Bet amount must be greater than minBetAmount"
     );
 
-    // Update round data
-    uint256 amount = msg.value;
+    address payer = fromFactory ? msg.sender : bettor;
+    betToken.safeTransferFrom(payer, address(this), amount);
+
     Round storage round = rounds[epoch];
     round.totalAmount = round.totalAmount + amount;
-    round.bullAmount = round.bullAmount + amount;
+    if (position == Position.Bull) {
+      round.bullAmount = round.bullAmount + amount;
+    } else {
+      round.bearAmount = round.bearAmount + amount;
+    }
 
-    // Update user data
-    BetInfo storage betInfo = ledger[epoch][msg.sender];
+    BetInfo storage betInfo = ledger[epoch][bettor];
     bool isFirstBet = betInfo.amount == 0;
 
     if (isFirstBet) {
-      betInfo.position = Position.Bull;
+      betInfo.position = position;
     } else {
       require(
-        betInfo.position == Position.Bull,
+        betInfo.position == position,
         "Can only add to existing position"
       );
     }
 
     betInfo.amount = betInfo.amount + amount;
     if (isFirstBet) {
-      userRounds[msg.sender].push(epoch);
+      userRounds[bettor].push(epoch);
     }
 
-    emit BetBull(msg.sender, epoch, amount);
+    if (position == Position.Bull) {
+      emit BetBull(bettor, epoch, amount);
+    } else {
+      emit BetBear(bettor, epoch, amount);
+    }
   }
 
   /**
    * @notice Claim reward for an array of epochs
    * @param epochs: array of epochs
    */
-  function claim(uint256[] calldata epochs) external nonReentrant notContract {
+  function claim(uint256[] calldata epochs) external nonReentrant {
     _claim(msg.sender, epochs);
   }
 
@@ -266,8 +272,6 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
     nonReentrant
     onlyFactory
   {
-    require(!_isContract(user), "Contract not allowed");
-    require(user == tx.origin, "Proxy contract not allowed");
     _claim(user, epochs);
   }
 
@@ -288,11 +292,14 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
       );
 
       uint256 addedReward = 0;
+      Round memory round = rounds[epoch];
 
       // Round valid, claim rewards
-      if (rounds[epoch].oracleCalled) {
+      if (round.oracleCalled && _isSingleSidedRound(round)) {
+        require(refundable(epoch, user), "Not eligible for refund");
+        addedReward = ledger[epoch][user].amount;
+      } else if (round.oracleCalled) {
         require(claimable(epoch, user), "Not eligible for claim");
-        Round memory round = rounds[epoch];
 
         if (round.lockPrice == round.closePrice) {
           addedReward = ledger[epoch][user].amount;
@@ -307,7 +314,8 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
               epoch,
               user,
               referralSummary.referrer,
-              baseReward
+              baseReward,
+              round
             );
           addedReward = rewardWithReferral;
 
@@ -330,12 +338,12 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
     }
 
     if (reward > 0) {
-      _safeTransferNativeToken(address(user), reward);
+      betToken.safeTransfer(user, reward);
     }
 
     if (referralSummary.roundCount > 0) {
       if (referralSummary.totalBonus > 0) {
-        _safeTransferNativeToken(
+        betToken.safeTransfer(
           referralSummary.referrer,
           referralSummary.totalBonus
         );
@@ -425,7 +433,7 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
   function claimTreasury() external nonReentrant onlyAdmin {
     uint256 currentTreasuryAmount = treasuryAmount;
     treasuryAmount = 0;
-    _safeTransferNativeToken(adminAddress(), currentTreasuryAmount);
+    betToken.safeTransfer(adminAddress(), currentTreasuryAmount);
 
     emit TreasuryClaim(currentTreasuryAmount);
   }
@@ -442,10 +450,6 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
     emit Unpause(currentEpoch);
   }
 
-  function totalReferralFee() public view returns (uint256) {
-    return referralFee() * 2;
-  }
-
   /**
    * @notice It allows the owner to recover tokens sent to the contract by mistake
    * @param _token: token address
@@ -453,7 +457,8 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
    * @dev Callable by owner
    */
   function recoverToken(address _token, uint256 _amount) external onlyAdmin {
-    IERC20(_token).safeTransfer(address(msg.sender), _amount);
+    require(_token != address(betToken), "Cannot recover bet token");
+    IERC20(_token).safeTransfer(msg.sender, _amount);
 
     emit TokenRecovery(_token, _amount);
   }
@@ -530,11 +535,29 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
   function refundable(uint256 epoch, address user) public view returns (bool) {
     BetInfo memory betInfo = ledger[epoch][user];
     Round memory round = rounds[epoch];
+    if (betInfo.amount == 0 || betInfo.claimed) {
+      return false;
+    }
+
+    bool roundExpiredWithoutOracle = !round.oracleCalled &&
+      block.timestamp > round.closeTimestamp + bufferSeconds();
+
+    bool singleSidedRoundRefundable = round.oracleCalled &&
+      block.timestamp > round.closeTimestamp &&
+      _isSingleSidedRound(round);
+
+    return roundExpiredWithoutOracle || singleSidedRoundRefundable;
+  }
+
+  function _isSingleSidedRound(Round memory round)
+    internal
+    pure
+    returns (bool)
+  {
     return
-      !round.oracleCalled &&
-      !betInfo.claimed &&
-      block.timestamp > round.closeTimestamp + bufferSeconds() &&
-      betInfo.amount != 0;
+      round.totalAmount > 0 &&
+      ((round.bullAmount == 0 && round.bearAmount > 0) ||
+        (round.bearAmount == 0 && round.bullAmount > 0));
   }
 
   /**
@@ -552,17 +575,16 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
     int256 closePrice = round.closePrice;
     uint256 total = round.totalAmount;
 
-    if (closePrice == lockPrice) {
+    if (_isSingleSidedRound(round) || (closePrice == lockPrice)) {
       round.rewardBaseCalAmount = 0;
       round.rewardAmount = 0;
-      referralAmountPerRound[epoch] = 0;
       emit RewardsCalculated(epoch, 0, 0, 0, 0);
       return;
     }
 
     uint256 treasuryAmt = (total * treasuryFee()) / 10000;
-    uint256 referralAmt = (total * totalReferralFee()) / 10000;
-    uint256 rewardAmount = total - (treasuryAmt + referralAmt);
+    uint256 rewardAmount = total - treasuryAmt;
+    uint256 referralAllocation = (total * referralFee()) / 10000;
 
     uint256 rewardBaseCalAmount = (closePrice > lockPrice)
       ? round.bullAmount
@@ -570,7 +592,6 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
 
     round.rewardBaseCalAmount = rewardBaseCalAmount;
     round.rewardAmount = rewardAmount;
-    referralAmountPerRound[epoch] = referralAmt;
 
     treasuryAmount += treasuryAmt;
 
@@ -579,7 +600,7 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
       rewardBaseCalAmount,
       rewardAmount,
       treasuryAmt,
-      referralAmt
+      referralAllocation
     );
   }
 
@@ -667,16 +688,6 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
   }
 
   /**
-   * @notice Transfer NativeToken in a safe way
-   * @param to: address to transfer NativeToken to
-   * @param value: NativeToken amount to transfer (in wei)
-   */
-  function _safeTransferNativeToken(address to, uint256 value) internal {
-    (bool success, ) = to.call{ value: value }("");
-    require(success, "TransferHelper: NativeToken_TRANSFER_FAILED");
-  }
-
-  /**
    * @notice Start round
    * Previous round n-2 must end
    * @param epoch: epoch
@@ -696,7 +707,8 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
     uint256 epoch,
     address winner,
     address referrer,
-    uint256 baseReward
+    uint256 baseReward,
+    Round memory round
   )
     internal
     returns (
@@ -705,20 +717,52 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
       bool
     )
   {
-    uint256 referralAllocated = (referralAmountPerRound[epoch] *
-      ledger[epoch][winner].amount) / rounds[epoch].rewardBaseCalAmount;
-
-    if (referrer == address(0) || referralAllocated == 0) {
-      treasuryAmount += referralAllocated;
+    if (referrer == address(0) || baseReward == 0) {
       return (baseReward, 0, false);
     }
 
-    uint256 referrerBonus = referralAllocated / 2;
-    uint256 winnerBonus = referralAllocated - referrerBonus;
+    uint256 rewardBase = round.rewardBaseCalAmount;
+    if (rewardBase == 0) {
+      return (baseReward, 0, false);
+    }
 
-    referralAmount += referralAllocated;
+    uint256 userAmount = ledger[epoch][winner].amount;
+    if (userAmount == 0) {
+      return (baseReward, 0, false);
+    }
 
-    return (baseReward + winnerBonus, referrerBonus, true);
+    uint256 referralPool = (round.totalAmount * referralFee()) / 10000;
+    uint256 referrerBonus = (referralPool * userAmount) / rewardBase;
+
+    uint256 winnerBonus = 0;
+    uint256 treasuryFeeValue = treasuryFee();
+    uint256 treasuryFeeWithRefValue = treasuryFeeWithReferral();
+
+    if (treasuryFeeValue > treasuryFeeWithRefValue) {
+      uint256 treasuryRefundPool = (round.totalAmount *
+        (treasuryFeeValue - treasuryFeeWithRefValue)) / 10000;
+      winnerBonus = (treasuryRefundPool * userAmount) / rewardBase;
+      if (winnerBonus > 0) {
+        require(treasuryAmount >= winnerBonus, "Treasury underflow");
+        treasuryAmount -= winnerBonus;
+      }
+    }
+
+    if (referrerBonus == 0 && winnerBonus == 0) {
+      return (baseReward, 0, false);
+    }
+
+    uint256 rewardWithReferral = baseReward + winnerBonus;
+    if (referrerBonus > rewardWithReferral) {
+      referrerBonus = rewardWithReferral;
+    }
+    rewardWithReferral -= referrerBonus;
+
+    if (referrerBonus > 0) {
+      referralAmount += referrerBonus;
+    }
+
+    return (rewardWithReferral, referrerBonus, true);
   }
 
   /**
@@ -782,18 +826,6 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
     return (price.publishTime, normalizedPrice);
   }
 
-  /**
-   * @notice Returns true if `account` is a contract.
-   * @param account: account address
-   */
-  function _isContract(address account) internal view returns (bool) {
-    uint256 size;
-    assembly {
-      size := extcodesize(account)
-    }
-    return size > 0;
-  }
-
   function adminAddress() public view returns (address) {
     return factory.adminAddress();
   }
@@ -812,6 +844,10 @@ contract HyperPredictV1Pair is Pausable, ReentrancyGuard {
 
   function treasuryFee() public view returns (uint256) {
     return factory.treasuryFee();
+  }
+
+  function treasuryFeeWithReferral() public view returns (uint256) {
+    return factory.treasuryFeeWithReferral();
   }
 
   function referralRegistry() public view returns (IReferralRegistry) {

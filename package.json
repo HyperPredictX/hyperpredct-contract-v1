@@ -7,10 +7,10 @@
   "private": true,
   "scripts": {
     "compile": "npx hardhat compile",
-    "deploy:hyperevm_testnet": "npx hardhat run --network hyperevm_testnet scripts/deploy.ts",
-    "run-round:hyperevm_testnet": "npx hardhat run --network hyperevm_testnet scripts/runRound/index.ts",
-    "claim-treasury:hyperevm_testnet": "npx hardhat run --network hyperevm_testnet scripts/exec-claim-treasury.ts",
-    "read-treasury:hyperevm_testnet": "npx hardhat run --network hyperevm_testnet scripts/read-treasury.ts",
+    "deploy:bsc_testnet": "npx hardhat run --network bsc_testnet scripts/deploy.ts",
+    "run-round:bsc_testnet": "npx hardhat run --network bsc_testnet scripts/runRound/index.ts",
+    "claim-treasury:bsc_testnet": "npx hardhat run --network bsc_testnet scripts/exec-claim-treasury.ts",
+    "read-treasury:bsc_testnet": "npx hardhat run --network bsc_testnet scripts/read-treasury.ts",
     "test": "npx hardhat test",
     "test:size-contracts": "npx hardhat size-contracts"
   },

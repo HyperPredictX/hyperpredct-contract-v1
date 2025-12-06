@@ -2,6 +2,8 @@
 pragma solidity ^0.8.19;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { HyperPredictV1Pair } from "./HyperPredictV1Pair.sol";
 import { IHyperPredictV1PairDeployer } from "./interfaces/IHyperPredictV1PairDeployer.sol";
 
@@ -10,11 +12,15 @@ import { IHyperPredictV1PairDeployer } from "./interfaces/IHyperPredictV1PairDep
  * @notice Deploys HyperPredictV1Pair contracts with shared configuration
  */
 contract HyperPredictV1Factory is Ownable {
+  using SafeERC20 for IERC20;
+
+  IERC20 public immutable token; // Prediction token
   address public referralRegistryAddress;
   address public adminAddress;
   uint256 public minBetAmount;
   uint256 public referralFee;
   uint256 public treasuryFee;
+  uint256 public treasuryFeeWithReferral;
   uint256 public bufferSeconds;
   IHyperPredictV1PairDeployer public pairDeployer;
   uint256 public constant MAX_TREASURY_FEE = 300; // 3%
@@ -32,12 +38,14 @@ contract HyperPredictV1Factory is Ownable {
     address indexed oracle,
     bytes32 indexed priceId,
     address operator,
-    uint256 intervalSeconds
+    uint256 intervalSeconds,
+    string tokenPair
   );
 
   event NewAdminAddress(address admin);
   event NewMinBetAmount(uint256 minBetAmount);
   event NewTreasuryFee(uint256 treasuryFee);
+  event NewTreasuryFeeWithReferral(uint256 treasuryFeeWithReferral);
   event NewReferralFee(uint256 referralFee);
   event NewBufferSeconds(uint256 bufferSeconds);
   event NewPairDeployer(address pairDeployer);
@@ -48,27 +56,36 @@ contract HyperPredictV1Factory is Ownable {
   }
 
   constructor(
+    IERC20 _token,
     address _referralRegistryAddress,
     address _adminAddress,
     uint256 _minBetAmount,
     uint256 _bufferSeconds,
     uint256 _referralFee,
-    uint256 _treasuryFee
+    uint256 _treasuryFee,
+    uint256 _treasuryFeeWithReferral
   ) {
+    require(address(_token) != address(0), "Token zero addr");
     require(_referralRegistryAddress != address(0), "Referral zero addr");
     require(_treasuryFee <= MAX_TREASURY_FEE, "Treasury fee too high");
-    require(_referralFee <= MAX_REFERRAL_FEE, "Referral fee too high");
     require(
-      _treasuryFee >= (_referralFee * 2),
-      "Referral fee higher than treasury"
+      _treasuryFeeWithReferral <= _treasuryFee,
+      "Treasury referral fee too high"
     );
+    require(
+      _treasuryFeeWithReferral <= MAX_TREASURY_FEE,
+      "Treasury fee too high"
+    );
+    require(_referralFee <= MAX_REFERRAL_FEE, "Referral fee too high");
     require(_bufferSeconds > 0, "bufferSeconds must be > 0");
 
+    token = _token;
     referralRegistryAddress = _referralRegistryAddress;
     adminAddress = _adminAddress;
     minBetAmount = _minBetAmount;
     referralFee = _referralFee;
     treasuryFee = _treasuryFee;
+    treasuryFeeWithReferral = _treasuryFeeWithReferral;
     bufferSeconds = _bufferSeconds;
   }
 
@@ -78,12 +95,14 @@ contract HyperPredictV1Factory is Ownable {
    * @param _priceId Pyth price ID
    * @param _operatorAddress operator address for this pair
    * @param _intervalSeconds round interval in seconds
+   * @param _tokenPair name of the token pair (e.g., "BTC/USD")
    */
   function createPair(
     address _oracleAddress,
     bytes32 _priceId,
     address _operatorAddress,
-    uint256 _intervalSeconds
+    uint256 _intervalSeconds,
+    string memory _tokenPair
   ) external onlyAdmin returns (address pair) {
     require(_oracleAddress != address(0), "oracle zero addr");
     require(_operatorAddress != address(0), "operator zero addr");
@@ -105,7 +124,8 @@ contract HyperPredictV1Factory is Ownable {
       _oracleAddress,
       _priceId,
       _operatorAddress,
-      _intervalSeconds
+      _intervalSeconds,
+      _tokenPair
     );
   }
 
@@ -121,6 +141,43 @@ contract HyperPredictV1Factory is Ownable {
       require(address(pair.factory()) == address(this), "Unknown pair");
 
       pair.claimViaFactory(msg.sender, requests[i].epochs);
+    }
+  }
+
+  /**
+   * @notice Place a bet on a specific pair through the factory
+   * @param pairAddress pair contract to interact with
+   * @param isBull true for bull position, false for bear
+   * @param epoch target epoch
+   * @param amount bet amount
+   */
+  function bet(
+    address pairAddress,
+    bool isBull,
+    uint256 epoch,
+    uint256 amount
+  ) external {
+    require(pairAddress != address(0), "pair zero addr");
+    require(
+      amount >= minBetAmount,
+      "Bet amount must be greater than minBetAmount"
+    );
+
+    HyperPredictV1Pair pair = HyperPredictV1Pair(pairAddress);
+    require(address(pair.factory()) == address(this), "Unknown pair");
+
+    token.safeTransferFrom(msg.sender, address(this), amount);
+    token.safeIncreaseAllowance(pairAddress, amount);
+
+    if (isBull) {
+      pair.betBullViaFactory(msg.sender, epoch, amount);
+    } else {
+      pair.betBearViaFactory(msg.sender, epoch, amount);
+    }
+
+    uint256 remainingAllowance = token.allowance(address(this), pairAddress);
+    if (remainingAllowance > 0) {
+      token.safeApprove(pairAddress, 0);
     }
   }
 
@@ -158,9 +215,34 @@ contract HyperPredictV1Factory is Ownable {
    */
   function setTreasuryFee(uint256 _treasuryFee) external onlyAdmin {
     require(_treasuryFee <= MAX_TREASURY_FEE, "Treasury fee too high");
+    require(
+      _treasuryFee >= treasuryFeeWithReferral,
+      "Treasury fee lower than referral"
+    );
     treasuryFee = _treasuryFee;
 
     emit NewTreasuryFee(treasuryFee);
+  }
+
+  /**
+   * @notice Set treasury fee applied when the bettor has a referrer
+   * @dev Callable by admin
+   */
+  function setTreasuryFeeWithReferral(uint256 _treasuryFeeWithReferral)
+    external
+    onlyAdmin
+  {
+    require(
+      _treasuryFeeWithReferral <= MAX_TREASURY_FEE,
+      "Treasury fee too high"
+    );
+    require(
+      treasuryFee >= _treasuryFeeWithReferral,
+      "Treasury fee lower than referral"
+    );
+    treasuryFeeWithReferral = _treasuryFeeWithReferral;
+
+    emit NewTreasuryFeeWithReferral(treasuryFeeWithReferral);
   }
 
   /**
@@ -169,10 +251,6 @@ contract HyperPredictV1Factory is Ownable {
    */
   function setReferralFee(uint256 _referralFee) external onlyAdmin {
     require(_referralFee <= MAX_REFERRAL_FEE, "Referral fee too high");
-    require(
-      treasuryFee >= (_referralFee * 2),
-      "Referral fee higher than treasury"
-    );
     referralFee = _referralFee;
     emit NewReferralFee(referralFee);
   }

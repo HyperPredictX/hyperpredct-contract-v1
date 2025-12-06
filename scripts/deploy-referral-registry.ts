@@ -5,10 +5,7 @@ const main = async () => {
   const networkName = network.name;
 
   // Check if the network is supported.
-  if (
-    networkName === "hyperevm_testnet" ||
-    networkName === "hyperevm_mainnet"
-  ) {
+  if (networkName === "bsc_testnet" || networkName === "bsc_mainnet") {
     console.log(`Deploying to ${networkName} network...`);
 
     // Compile contracts.
